@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const { PDFExtract } = require('pdf.js-extract');
+const {pdfOCR} = require('./ocr.js');
 const pdfExtract = new PDFExtract();
 
 async function processPDF(filePath) {
@@ -8,10 +9,11 @@ async function processPDF(filePath) {
         let result = `PDF Content:\n\n`;
         result += `Number of pages: ${data.pages.length}\n\n`;
 
+        
         for (let i = 0; i < data.pages.length; i++) {
             const page = data.pages[i];
             result += `Page ${i + 1}:\n`;
-
+            
             const tables = extractTables(page.content);
             if (tables.length > 0) {
                 result += `Tables found on page ${i + 1}:\n`;
@@ -21,10 +23,11 @@ async function processPDF(filePath) {
             } else {
                 result += `No tables found on this page.\n`;
             }
-
+            
             result += `Text content:\n${extractTextContent(page.content)}\n\n`;
+            
         }
-
+        const ocrData = await pdfOCR(filePath);
         return result;
     } catch (error) {
         console.error('Error processing PDF:', error);
