@@ -8,32 +8,32 @@ const { PROCESSED_DIR } = require('../../config/constants');
 const logger = require('../utils/logger');
 
 
+const fileProcessors = {
+    '.pdf': processPDF,
+    '.doc': processWord,
+    '.docx': processWord,
+    '.xls': processSpreadsheet,
+    '.xlsx': processSpreadsheet,
+    '.csv': processSpreadsheet,
+    '.png': processImage,
+    '.jpg': processImage,
+    '.jpeg': processImage
+};
+
 async function processAttachment(filePath, extension) {
     const fileName = path.basename(filePath);
     let processedContent = '';
 
-    switch (extension.toLowerCase()) {
-        case '.pdf':
-            processedContent = await processPDF(filePath);
-            break;
-        case '.doc':
-        case '.docx':
-            processedContent = await processWord(filePath);
-            break;
-        case '.xls':
-        case '.xlsx':
-        case '.csv':
-            processedContent = await processSpreadsheet(filePath);
-            break;
-        case '.png':
-        case '.jpg':
-        case '.jpeg':
-            processedContent = await processImage(filePath);
-            break;
-        default:
-            logger.warn(`Unsupported file format: ${extension}`);
-            return;
+    // Get the corresponding processing function for the extension
+    const processor = fileProcessors[extension.toLowerCase()];
+
+    if (!processor) {
+        logger.warn(`Unsupported file format: ${extension}`);
+        return;
     }
+
+    // Call the corresponding processor function
+    processedContent = await processor(filePath);
 
     const formatDir = extension.toLowerCase().replace('.', '');
     const destDir = path.join(PROCESSED_DIR, formatDir);

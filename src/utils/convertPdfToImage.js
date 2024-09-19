@@ -41,11 +41,15 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
 
         const imagePaths = [];
         for (let i = options.firstPageToConvert; i <= options.lastPageToConvert; i++) {
-            const imagePath = `${outputFilePath}-${i}.png`;
-            if (fs.existsSync(imagePath)) {
-                imagePaths.push(imagePath);
+            const imagePathWithoutLeadingZero = `${outputFilePath}-${i}.png`;
+            const imagePathWithLeadingZero = `${outputFilePath}-${i.toString().padStart(2, '0')}.png`;
+            
+            if (fs.existsSync(imagePathWithoutLeadingZero)) {
+                imagePaths.push(imagePathWithoutLeadingZero);
+            } else if (fs.existsSync(imagePathWithLeadingZero)) {
+                imagePaths.push(imagePathWithLeadingZero);
             } else {
-                logger.warn(`Expected image file not found: ${imagePath}`);
+                logger.warn(`Expected image file not found: ${imagePathWithoutLeadingZero} or ${imagePathWithLeadingZero}`);
             }
         }
 
