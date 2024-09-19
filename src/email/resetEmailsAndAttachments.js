@@ -1,7 +1,7 @@
 const imaps = require('imap-simple');
 const fs = require('fs').promises;
 const path = require('path');
-const { EMAIL_ADDRESS, ATTACHMENT_DIR, PROCESSED_DIR } = require('../../config/constants');
+const { EMAIL_ADDRESS, DATA_DIR } = require('../../config/constants');
 const logger = require('../utils/logger');
 
 
@@ -11,8 +11,8 @@ async function resetEmailsAndAttachments(auth) {
         await markAllAsUnseen(auth);
 
         // Usuń foldery z załącznikami
-        await removeDirectory(ATTACHMENT_DIR);
-        await removeDirectory(PROCESSED_DIR);
+        await removeDirectory(DATA_DIR);
+
 
         logger.info('Reset completed successfully.');
     } catch (error) {
