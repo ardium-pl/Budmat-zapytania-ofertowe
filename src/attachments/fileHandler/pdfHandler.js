@@ -1,4 +1,3 @@
-const fs = require('fs').promises;
 const { PDFExtract } = require('pdf.js-extract');
 const {pdfOCR} = require('./ocr.js');
 const pdfExtract = new PDFExtract();
@@ -28,7 +27,7 @@ async function processPDF(filePath) {
             result += `Text content:\n${extractTextContent(page.content)}\n\n`;
             
         }
-        const ocrData = await pdfOCR(filePath); //tutaj dostajesz JSONa, który ma przypisany cały tekst OCR 
+        // const ocrData = await pdfOCR(filePath); //tutaj dostajesz JSONa, który ma przypisany cały tekst OCR
         
         return result;
     } catch (error) {

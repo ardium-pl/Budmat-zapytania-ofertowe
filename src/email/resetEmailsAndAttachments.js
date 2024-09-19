@@ -1,6 +1,5 @@
 const imaps = require('imap-simple');
 const fs = require('fs').promises;
-const path = require('path');
 const { EMAIL_ADDRESS, DATA_DIR } = require('../../config/constants');
 const logger = require('../utils/logger');
 
