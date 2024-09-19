@@ -27,7 +27,8 @@ async function processPDF(filePath) {
             result += `Text content:\n${extractTextContent(page.content)}\n\n`;
             
         }
-        const ocrData = await pdfOCR(filePath);
+        const ocrData = await pdfOCR(filePath); //tutaj dostajesz JSONa, który ma przypisany cały tekst OCR 
+        
         return result;
     } catch (error) {
         console.error('Error processing PDF:', error);
