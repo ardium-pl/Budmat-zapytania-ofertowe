@@ -1,4 +1,5 @@
 const xlsx = require('xlsx');
+const logger = require('../../utils/logger');
 
 async function processSpreadsheet(filePath) {
     try {
@@ -8,7 +9,7 @@ async function processSpreadsheet(filePath) {
         const data = xlsx.utils.sheet_to_json(sheet);
         return `Spreadsheet Data:\n${JSON.stringify(data, null, 2)}`;
     } catch (error) {
-        console.error('Error processing spreadsheet:', error);
+        logger.error('Error processing spreadsheet:', error);
         return `Error processing spreadsheet: ${error.message}`;
     }
 }

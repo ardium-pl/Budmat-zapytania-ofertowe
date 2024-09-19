@@ -1,15 +1,17 @@
 const fs = require("fs");
+const logger = require("./logger");
 
 function deleteFile(filePath) {
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    } else {
-      console.log(`File not found: ${filePath}`);
+    try {
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            logger.info("File deleted:", filePath);
+        } else {
+            logger.error(`File not found: ${filePath}`);
+        }
+    } catch (err) {
+        logger.error(`Error deleting file ${filePath}:`, err);
     }
-  } catch (err) {
-    console.error(`Error deleting file ${filePath}:`, err);
-  }
 }
 
-module.exports = { deleteFile };
+module.exports = {deleteFile};

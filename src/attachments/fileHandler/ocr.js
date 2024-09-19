@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { convertPdfToImages } = require("../../utils/convertPdfToImage.js");
 const { deleteFile } = require("../../utils/deleteFile.js");
+const logger = require("../../utils/logger.js");
 dotenv.config();
 
 const VISION_AUTH = {
@@ -33,16 +34,16 @@ async function pdfOCR(pdfFilePath) {
 
             try {
                 const imageFilePaths = await convertPdfToImages(pdfFilePath, imagesFolder);
-                console.log(`🖼️ Converted PDF to images: ${imageFilePaths.join(', ')}`);
+                logger.info(`🖼️ Converted PDF to images: ${imageFilePaths.join(', ')}`);
 
                 if (imageFilePaths.length === 0) {
-                    throw new Error(" 😡 No images were generated from the PDF");
+                    logger.error("No images were generated from the PDF");
+                    return [];
                 }
-
                 let googleVisionText = '';
 
                 for (const imageFilePath of imageFilePaths) {
-                    console.log(` 🕶️ Processing image with Google Vision: ${imageFilePath}`);
+                    logger.info(` 🕶️ Processing image with Google Vision: ${imageFilePath}`);
                     const [result] = await client.documentTextDetection(imageFilePath);
                     if (result.fullTextAnnotation) {
                         googleVisionText += result.fullTextAnnotation.text + '\n';
@@ -59,13 +60,13 @@ async function pdfOCR(pdfFilePath) {
                     const textPath = path.join(folder, `${fileNameWithoutExt}.txt`);
                     fs.writeFileSync(textPath, text, "utf8");
                 };
-                
+
 
                 saveData(outputTextFolder, googleVisionText);
 
-                console.log(` 💚 Successfully processed ${pdfFilePath}`);
+                logger.info(` 💚 Successfully processed ${pdfFilePath}`);
             } catch (err) {
-                console.error(`Error processing ${pdfFilePath}):`, err);
+                logger.error(`Error processing ${pdfFilePath}):`, err);
             } finally {
                 // Clean up temporary files
                 // if (fs.existsSync(pdfFilePath)) {
@@ -76,7 +77,7 @@ async function pdfOCR(pdfFilePath) {
                     .filter(f => f.startsWith(fileBaseName + '-'))
                     .map(f => path.join(imagesFolder, f));
                 imagePaths.forEach(imagePath => {
-                    console.log(`Deleting temporary image: ${imagePath}`);
+                    logger.warn(`Deleting temporary image: ${imagePath}`);
                     deleteFile(imagePath);
                 });
             }
@@ -84,7 +85,7 @@ async function pdfOCR(pdfFilePath) {
 
         return results;
     } catch (err) {
-        console.error("Error in pdfOCR:", err);
+        logger.error("Error in pdfOCR:", err);
         throw err;
     }
 }

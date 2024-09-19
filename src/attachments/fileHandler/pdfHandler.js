@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const { PDFExtract } = require('pdf.js-extract');
 const {pdfOCR} = require('./ocr.js');
 const pdfExtract = new PDFExtract();
+const logger = require('../../utils/logger');
 
 async function processPDF(filePath) {
     try {
@@ -31,7 +32,7 @@ async function processPDF(filePath) {
         
         return result;
     } catch (error) {
-        console.error('Error processing PDF:', error);
+        logger.error('Error processing PDF:', error);
         return `Error processing PDF: ${error.message}`;
     }
 }
