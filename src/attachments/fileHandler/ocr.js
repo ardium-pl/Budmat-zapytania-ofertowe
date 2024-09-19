@@ -5,6 +5,7 @@ const path = require("path");
 const { convertPdfToImages } = require("../../utils/convertPdfToImage.js");
 const { deleteFile } = require("../../utils/deleteFile.js");
 const logger = require("../../utils/logger.js");
+const { DATA_DIR } = require("../../../config/constants");
 dotenv.config();
 
 const VISION_AUTH = {
@@ -15,9 +16,9 @@ const VISION_AUTH = {
 };
 
 async function pdfOCR(pdfFilePath) {
-    const inputPdfFolder = "./attachments";
-    const imagesFolder = "./images";
-    const outputTextFolder = "./processed_attachments/pdf";
+    const inputPdfFolder = path.join(DATA_DIR, 'attachments');
+    const imagesFolder = path.join(DATA_DIR, 'images');
+    const outputTextFolder = path.join(DATA_DIR, 'processed_attachments/pdf');
     const fileBaseName = path.basename(pdfFilePath, '.pdf');
 
     [inputPdfFolder, imagesFolder, outputTextFolder].forEach(folder => {

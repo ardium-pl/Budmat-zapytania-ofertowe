@@ -1,10 +1,11 @@
+const path = require('path');
 const fs = require('fs').promises;
 const {google} = require('googleapis');
 const express = require('express');
 const logger = require('../utils/logger');
 
-const CREDENTIALS_PATH = 'credentials.json';
-const TOKEN_PATH = 'token.json';
+const CREDENTIALS_PATH = path.join(__dirname, '../../credentials.json');
+const TOKEN_PATH = path.join(__dirname, '../../token.json');
 const SCOPES = ['https://mail.google.com/'];
 
 let oAuth2Client;
