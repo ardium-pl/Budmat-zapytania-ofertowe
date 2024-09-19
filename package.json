@@ -12,6 +12,7 @@
     "braces": "^3.0.3",
     "camelcase": "^8.0.0",
     "chokidar": "^4.0.0",
+    "docx4js": "^3.3.0",
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "express": "^4.21.0",
@@ -38,7 +39,8 @@
     "source-map-url": "^0.4.1",
     "utf8": "^3.0.0",
     "winston": "^3.14.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-populate": "^1.21.0"
   },
   "author": "Floresek",
   "license": "ISC",
