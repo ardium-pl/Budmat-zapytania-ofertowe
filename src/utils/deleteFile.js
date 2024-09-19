@@ -1,7 +1,7 @@
 const fs = require("fs");
 const logger = require("./logger");
 
-function deleteFile(filePath) {
+async function deleteFile(filePath) {
     try {
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);

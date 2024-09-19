@@ -77,9 +77,9 @@ async function pdfOCR(pdfFilePath) {
                 const imagePaths = fs.readdirSync(imagesFolder)
                     .filter(f => f.startsWith(fileBaseName + '-'))
                     .map(f => path.join(imagesFolder, f));
-                imagePaths.forEach(imagePath => {
+                imagePaths.forEach(async imagePath => {
                     logger.warn(`Deleting temporary image: ${imagePath}`);
-                    deleteFile(imagePath);
+                    await deleteFile(imagePath);
                 });
             }
         
