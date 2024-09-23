@@ -1,13 +1,12 @@
 const winston = require('winston');
 const path = require('path');
-const { format, zonedTimeToUtc, utcToZonedTime } = require('date-fns-tz');
+const { utcToZonedTime, format } = require('date-fns-tz');
 
 // Konfiguracja formatu logów
 const logFormat = winston.format.combine(
     winston.format.timestamp({
         format: () => {
-            const utcDate = zonedTimeToUtc(new Date(), 'Europe/Warsaw'); // Konwersja do UTC
-            const zonedDate = utcToZonedTime(utcDate, 'Europe/Warsaw'); // Konwersja do strefy czasowej Warsaw
+            const zonedDate = utcToZonedTime(new Date(), 'Europe/Warsaw'); // Konwersja do strefy czasowej Warsaw
             return format(zonedDate, 'yyyy-MM-dd HH:mm:ss', { timeZone: 'Europe/Warsaw' });
         }
     }),
