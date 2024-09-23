@@ -70,27 +70,26 @@ async function getEmailContent(connection, message) {
     const textParts = parts.filter(part => part.type === 'text' && part.subtype === 'plain');
 
     if (textParts.length > 0) {
-        const partData = await connection.getPartData(message, textParts[0]);
+        const part = textParts[0];
+        const partData = await connection.getPartData(message, part);
 
-        // Sprawdź, czy treść jest zakodowana w Quoted-Printable
-        const isQuotedPrintable = textParts[0].encoding === 'QUOTED-PRINTABLE';
+        // imap-simple już dekoduje BASE64 i QUOTED-PRINTABLE
+        // Musimy obsłużyć tylko przypadki, gdy kodowanie nie jest UTF-8
 
-        // Dekoduj Quoted-Printable, jeśli to konieczne
-        const decodedData = isQuotedPrintable ? quotedPrintable.decode(partData.toString()) : partData;
-
-        // Wykryj kodowanie
-        const detectedEncoding = chardet.detect(Buffer.from(decodedData));
-        logger.info(`Detected encoding: ${detectedEncoding}`);
-
-        try {
-            // Konwertuj na UTF-8
-            const content = iconv.decode(Buffer.from(decodedData), detectedEncoding);
-            return content;
-        } catch (error) {
-            logger.error(`Error decoding content: ${error.message}`);
-            // Jeśli dekodowanie się nie powiedzie, zwróć oryginalną treść
-            return decodedData.toString();
+        if (part.params && part.params.charset) {
+            const charset = part.params.charset.toUpperCase();
+            if (charset !== 'UTF-8') {
+                try {
+                    return iconv.decode(Buffer.from(partData), charset);
+                } catch (error) {
+                    logger.warn(`Failed to decode with ${charset}: ${error.message}`);
+                }
+            }
         }
+
+        // Jeśli nie ma określonego charset lub dekodowanie się nie powiodło,
+        // zwracamy oryginalną treść, która powinna być już zdekodowana przez imap-simple
+        return partData.toString();
     }
 
     return '';
