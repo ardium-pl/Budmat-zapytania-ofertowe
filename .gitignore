@@ -4,3 +4,4 @@ token.json
 node_modules/
 credentials.json
 package-lock.json
+pnpm-lock.yaml
