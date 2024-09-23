@@ -5,7 +5,7 @@ async function deleteFile(filePath) {
     try {
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
-            logger.info("File deleted:", filePath);
+            logger.info('File deleted', { filePath });
         } else {
             logger.error(`File not found: ${filePath}`);
         }

@@ -1,14 +1,12 @@
 const fs = require('fs').promises;
 const path = require('path');
 const imaps = require('imap-simple');
-const {processAttachment} = require('../attachments/attachmentProcessor');
-const {decodeFilename, isAllowedFileType, getFileExtension} = require('../utils/fileUtils');
-const {PROCESSED_DIR} = require('../../config/constants');
+const { processAttachment } = require('../attachments/attachmentProcessor');
+const { decodeFilename, isAllowedFileType, getFileExtension } = require('../utils/fileUtils');
+const { PROCESSED_DIR } = require('../../config/constants');
 const logger = require('../utils/logger');
-const {decode} = require("docx4js/docs");
-const chardet = require('chardet');
-const iconv = require('iconv-lite');
-const quotedPrintable = require('quoted-printable');
+const simpleParser = require('mailparser').simpleParser;
+const util = require('util');
 
 async function processNewEmails(connection) {
     try {
@@ -23,94 +21,122 @@ async function processNewEmails(connection) {
         };
 
         const messages = await connection.search(searchCriteria, fetchOptions);
-        logger.info(`🔍 Found ${messages.length} new messages`);
+        logger.info(`Found ${messages.length} new messages`);
 
-        for (const message of messages) {
-            await processEmail(connection, message);
+        for (let i = 0; i < messages.length; i++) {
+            const message = messages[i];
+            logger.info(`Processing message ${i + 1} of ${messages.length}`);
+            try {
+                await processEmail(connection, message);
+            } catch (error) {
+                logger.error(`Error processing message ${i + 1}:`, error);
+                // Kontynuuj przetwarzanie następnych wiadomości
+            }
         }
 
-        logger.info('👌 Finished processing all messages');
+        logger.info('Finished processing all messages');
     } catch (error) {
-        logger.error('Error processing new emails:', error);
+        logger.error('Error in processNewEmails:', error);
     }
 }
 
 async function processEmail(connection, message) {
-    const {uid} = message.attributes;
+    const { uid } = message.attributes;
     const emailId = Date.now();
     const emailDir = path.join(PROCESSED_DIR, 'combined', `email_${emailId}`);
 
+    logger.info(`Starting to process email ${emailId}`, { uid });
+
+    return new Promise(async (resolve, reject) => {
+        const timeout = setTimeout(() => {
+            logger.error(`Processing of email ${emailId} timed out`, { uid });
+            reject(new Error(`Processing of email ${emailId} timed out`));
+        }, 60000); // 60 sekund timeout
+
+        try {
+            await fs.mkdir(emailDir, { recursive: true });
+            logger.info(`Created directory for email ${emailId}`, { uid });
+
+            logger.info(`Getting email content for email ${emailId}`, { uid });
+            const emailContent = await getEmailContent(message);
+            logger.info(`Got email content for email ${emailId}`, { uid });
+
+            logger.info(`Saving email content for email ${emailId}`);
+            await saveEmailContent(emailContent, emailDir);
+            logger.info(`Saved email content for email ${emailId}`);
+
+            // Process attachments
+            logger.info(`Processing attachments for email ${emailId}`);
+            const attachmentResults = await processEmailAttachments(connection, message, emailDir);
+            logger.info(`Processed attachments for email ${emailId}`);
+
+            // Create metadata file
+            logger.info(`Creating metadata for email ${emailId}`);
+            await createMetadataFile(emailDir, emailContent, attachmentResults);
+            logger.info(`Created metadata for email ${emailId}`);
+
+            // Create a flag file to indicate email processing is complete
+            await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
+            logger.info(`Created processing complete flag for email ${emailId}`);
+
+            // Mark email as seen
+            await markMessageAsSeen(connection.imap, uid);
+            logger.info(`Processed and marked message ${uid} as seen`);
+
+            clearTimeout(timeout);
+            resolve();
+        } catch (error) {
+            logger.error(`Error processing email ${emailId}:`, error);
+            clearTimeout(timeout);
+            reject(error);
+        }
+    });
+}
+async function getEmailContent(message) {
+    const uid = message.attributes.uid;
+    logger.debug('Fetching message', { uid });
+
     try {
-        await fs.mkdir(emailDir, {recursive: true});
+        // Find the part that contains the full email content
+        const all = message.parts.find(part => part.which === '');
 
-        // Process email content
-        const emailContent = await getEmailContent(connection, message);
-        await saveEmailContent(emailContent, emailDir);
+        if (!all) {
+            throw new Error('No full message body found');
+        }
 
-        // Process attachments
-        const attachmentResults = await processEmailAttachments(connection, message, emailDir);
+        const rawEmail = all.body;
 
-        // Create metadata file
-        await createMetadataFile(emailDir, emailContent, attachmentResults);
+        logger.debug('Raw email data retrieved', { uid });
 
-        // Create a flag file to indicate email processing is complete
-        await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
+        logger.debug('Starting email parsing', { uid });
+        const parsedMail = await simpleParser(rawEmail);
 
-        // Mark email as seen
-        await markMessageAsSeen(connection.imap, uid);
-        logger.info(`Processed and marked message ${uid} as seen`);
+        logger.debug('Email parsing completed', {
+            subject: parsedMail.subject,
+            bodyLength: parsedMail.text ? parsedMail.text.length : 0,
+            uid
+        });
 
-    } catch (error) {
-        logger.error(`Error processing email ${emailId}:`, error);
+        return {
+            subject: parsedMail.subject,
+            body: parsedMail.text
+        };
+    } catch (err) {
+        logger.error('Error fetching or parsing email', { error: err, uid });
+        throw err;
     }
 }
 
-async function getEmailContent(connection, message) {
-    const parts = imaps.getParts(message.attributes.struct);
-    const textParts = parts.filter(part => part.type === 'text' && part.subtype === 'plain');
 
-    if (textParts.length > 0) {
-        const part = textParts[0];
-        const partData = await connection.getPartData(message, part);
+async function saveEmailContent(emailContent, emailDir) {
+    const subjectFilePath = path.join(emailDir, 'email_subject.txt');
+    const bodyFilePath = path.join(emailDir, 'email_body.txt');
 
-        // Tablica możliwych kodowań do sprawdzenia
-        const encodings = ['utf-8', 'iso-8859-2', 'windows-1250', 'latin1'];
+    await fs.writeFile(subjectFilePath, emailContent.subject, { encoding: 'utf8' });
+    await fs.writeFile(bodyFilePath, emailContent.body, { encoding: 'utf8' });
 
-        // Funkcja do sprawdzenia, czy tekst zawiera polskie znaki
-        const containsPolishChars = (text) => /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text);
-
-        // Próba automatycznego wykrycia kodowania
-        const detectedEncoding = chardet.detect(Buffer.from(partData));
-        if (detectedEncoding) {
-            encodings.unshift(detectedEncoding);
-        }
-
-        // Próba dekodowania z różnymi kodowaniami
-        for (const encoding of encodings) {
-            try {
-                let decodedContent = iconv.decode(Buffer.from(partData), encoding);
-                decodedContent = fixEncodingErrors(decodedContent);
-                if (containsPolishChars(decodedContent)) {
-                    logger.info(`Successfully decoded email content using ${encoding}`);
-                    return decodedContent;
-                }
-            } catch (error) {
-                logger.warn(`Failed to decode with ${encoding}: ${error.message}`);
-            }
-        }
-
-        // Jeśli żadne kodowanie nie zadziałało, spróbujmy usunąć nieprawidłowe znaki
-        logger.warn('All decoding attempts failed, trying to remove invalid characters');
-        return fixEncodingErrors(partData.toString());
-    }
-
-    return '';
-}
-
-async function saveEmailContent(content, emailDir) {
-    const emailFilePath = path.join(emailDir, 'email_content.txt');
-    await fs.writeFile(emailFilePath, content, {encoding: 'utf8'});
-    logger.info(`Email content saved to ${emailFilePath}`);
+    logger.info(`Email subject saved to ${subjectFilePath}`);
+    logger.info(`Email body saved to ${bodyFilePath}`);
 }
 
 async function processEmailAttachments(connection, message, emailDir) {
@@ -128,7 +154,7 @@ async function processEmailAttachments(connection, message, emailDir) {
                     const partData = await connection.getPartData(message, part);
                     const filePath = path.join(emailDir, filename);
                     await fs.writeFile(filePath, partData);
-                    logger.info('Attachment saved:', filename);
+                    // logger.info('Attachment saved:', filename);
 
                     const processedFilePath = await processAttachment(filePath, extension);
                     attachmentResults.push({
@@ -162,25 +188,6 @@ async function createMetadataFile(emailDir, emailContent, attachmentResults) {
     const metadataPath = path.join(emailDir, 'metadata.json');
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
     logger.info(`Metadata saved to ${metadataPath}`);
-}
-
-function fixEncodingErrors(text) {
-    const replacements = {
-        'Â': '',
-        'Ă': 'ą',
-        'Ć': 'ć',
-        'Ĺ': 'ł',
-        'Ĺ': 'ń',
-        'Ă': 'ó',
-        'Ĺ': 'ś',
-        'Ĺş': 'ź',
-        'ĹĽ': 'ż',
-        'ĂŞ': 'ę',
-        'Ăł': 'ó',
-        'Âł': 'ł'
-    };
-
-    return text.replace(/Â|Ă|Ć|Ĺ|Ă|Ĺş|ĹĽ|ĂŞ|Ăł|Âł/g, match => replacements[match] || match);
 }
 
 async function markMessageAsSeen(connection, uid) {
