@@ -9,7 +9,8 @@ COPY package*.json ./
 
 # Zainstaluj zależności, w tym aktualizację @grpc/grpc-js
 RUN npm install --production && \
-    npm install @grpc/grpc-js@latest
+    npm install @grpc/grpc-js@latest @google-cloud/vision@latest
+
 
 # Skopiuj resztę aplikacji
 COPY . .
