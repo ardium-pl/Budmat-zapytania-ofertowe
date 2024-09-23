@@ -1,5 +1,5 @@
 # Użyj pełnego obrazu Node.js zamiast wersji slim
-FROM node:18.0.0
+FROM node:18.17.0
 
 # Ustaw katalog roboczy
 WORKDIR /app
