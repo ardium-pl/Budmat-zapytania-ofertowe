@@ -13,6 +13,7 @@ const VISION_AUTH = {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
         private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Handling the private key newline issue
     },
+    fallback: true,  // Wymuszenie użycia REST API zamiast gRPC
 };
 
 async function pdfOCR(pdfFilePath) {
@@ -76,16 +77,22 @@ async function fileOcr(imageFilePath) {
     const results = [];
 
     logger.info(` 🕶️ Processing image with Google Vision: ${imageFilePath}`);
-    const [result] = await client.documentTextDetection(imageFilePath);
+    try {
+        const [result] = await client.documentTextDetection(imageFilePath);
 
-    // Getting text from the image
-    let googleVisionText = "";
-    if (result.fullTextAnnotation) {
-        googleVisionText = result.fullTextAnnotation.text + "\n";
-        results.push({googleVisionText});
+        // Getting text from the image
+        let googleVisionText = "";
+        if (result.fullTextAnnotation) {
+            googleVisionText = result.fullTextAnnotation.text + "\n";
+            results.push({googleVisionText});
+        }
+
+        logger.info(` 💚 Successfully processed image ${imageFilePath}`);
+    } catch (err) {
+        logger.error(`Error during Google Vision OCR processing: ${err.message}`);
+        throw err;
     }
 
-    logger.info(` 💚 Successfully processed image ${imageFilePath}`);
     return results;
 }
 
