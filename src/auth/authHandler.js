@@ -11,7 +11,7 @@ let oAuth2Client;
 
 async function authorize(credentials) {
     const {client_secret, client_id, redirect_uris} = credentials;
-    oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+    oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
 
     try {
         const token = JSON.parse(await fs.readFile(TOKEN_PATH));
@@ -66,7 +66,8 @@ function getNewToken(oAuth2Client) {
 
         app.listen(port, () => {
             logger.info(`Server listening at http://localhost:${port}`);
-            logger.warn('Open this URL in your browser to authorize the app:', authUrl);
+            logger.info('app url: ' + authUrl);
+            logger.warn(`Open this URL in your browser to authorize the app: ${authUrl}`);
         });
     });
 }
