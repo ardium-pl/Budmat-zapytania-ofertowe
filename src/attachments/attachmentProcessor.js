@@ -24,28 +24,20 @@ async function processAttachment(filePath, extension) {
     const fileName = path.basename(filePath);
     let processedContent = '';
 
-    // Get the corresponding processing function for the extension
     const processor = fileProcessors[extension.toLowerCase()];
 
     if (!processor) {
         logger.warn(`Unsupported file format: ${extension}`);
-        return;
+        return null;
     }
 
-    // Call the corresponding processor function
     processedContent = await processor(filePath);
 
-    const formatDir = extension.toLowerCase().replace('.', '');
-    const destDir = path.join(PROCESSED_DIR, formatDir);
-    await fs.mkdir(destDir, {recursive: true});
-
-    const destFilePath = path.join(destDir, fileName);
-    const processedFilePath = path.join(destDir, `${path.parse(fileName).name}_processed.json`);
-
-    await fs.copyFile(filePath, destFilePath);
+    const processedFilePath = path.join(path.dirname(filePath), `${path.parse(fileName).name}_processed.json`);
     await fs.writeFile(processedFilePath, processedContent);
 
     logger.info(`Processed ${fileName} and saved results to ${processedFilePath}`);
+    return processedFilePath;
 }
 
 module.exports = {

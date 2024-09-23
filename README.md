@@ -85,7 +85,6 @@ gmail-extractor/
 2. Edit the `.env` file and fill in your specific details:
    - `EMAIL_ADDRESS`: Your Gmail address
    - `EMAIL_PASSWORD`: Your app password or OAuth token (see Gmail security settings)
-   - `ATTACHMENT_DIR` and `PROCESSED_DIR`: Customize if needed
    - `CLIENT_ID` and `CLIENT_SECRET`: From your Google Cloud Console project
    - `REDIRECT_URI`: Should match one of the authorized redirect URIs in your Google Cloud Console project
    - Adjust other settings as needed
@@ -144,7 +143,6 @@ Ensure your `.env` file in the root directory contains the necessary configurati
 
 ```
 EMAIL_ADDRESS=your.email@gmail.com
-ATTACHMENT_DIR=attachments
 PROCESSED_DIR=processed_attachments
 ```
 

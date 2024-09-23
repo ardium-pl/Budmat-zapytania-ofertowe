@@ -1,13 +1,15 @@
 const fs = require("fs").promises;
 const {authorize} = require("./src/auth/authHandler");
 const {startImapListener} = require("./src/email/imapListener");
-const {
-    resetEmailsAndAttachments,
-} = require("./src/email/resetEmailsAndAttachments");
+const {resetEmailsAndAttachments} = require("./src/email/resetEmailsAndAttachments");
 const logger = require("./src/utils/logger");
+const {createDataDirectories} = require("./src/utils/createDataDirectories");
 
 async function main() {
     try {
+
+        await createDataDirectories();
+
         const CREDENTIALS = {
             client_id: process.env.CLIENT_ID,
             client_secret: process.env.CLIENT_SECRET,

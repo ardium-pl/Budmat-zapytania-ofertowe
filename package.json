@@ -19,6 +19,7 @@
     "glob": "^11.0.0",
     "google-auth-library": "^9.14.1",
     "googleapis": "^144.0.0",
+    "iconv-lite": "^0.6.3",
     "imap": "^0.8.17",
     "imap-simple": "^1.6.3",
     "lru-cache": "^11.0.1",

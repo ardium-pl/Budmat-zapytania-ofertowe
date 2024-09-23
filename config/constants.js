@@ -1,8 +1,8 @@
 const path = require('path');
 
 const DATA_DIR = path.join(__dirname, '../data');
-const ATTACHMENT_DIR = path.join(DATA_DIR, 'attachments');
 const PROCESSED_DIR = path.join(DATA_DIR, 'processed');
+const TEMP_DIR = path.join(DATA_DIR, 'temp');
 const EMAIL_ADDRESS = process.env.EMAIL_ADDRESS || 'ardiumvpn@gmail.com';
 const ALLOWED_EXTENSIONS = [
     '.pdf',
@@ -26,8 +26,8 @@ const ALLOWED_MIME_TYPES = [
 
 module.exports = {
     DATA_DIR,
-    ATTACHMENT_DIR,
     PROCESSED_DIR,
+    TEMP_DIR,
     EMAIL_ADDRESS,
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES
