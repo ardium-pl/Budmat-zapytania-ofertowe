@@ -2,7 +2,6 @@ const imaps = require('imap-simple');
 const fs = require('fs').promises;
 const { EMAIL_ADDRESS, DATA_DIR } = require('../../config/constants');
 const logger = require('../utils/logger');
-const path = require('path');
 
 
 async function resetEmailsAndAttachments(auth) {
@@ -61,7 +60,7 @@ async function markAllAsUnseen(auth) {
                 const f = connection.imap.fetch(results, { bodies: ['HEADER'] });
                 f.on('message', (msg) => {
                     msg.on('attributes', (attrs) => {
-                        const {uid} = attrs;
+                        const uid = attrs.uid;
                         connection.imap.delFlags(uid, ['\\Seen'], (err) => {
                             if (err) {
                                 logger.error(`Error marking message ${uid} as unseen:`, err);

@@ -1,12 +1,9 @@
 const winston = require('winston');
 const path = require('path');
-const { format } = require('date-fns-tz');
 
 // Konfiguracja formatu logów
 const logFormat = winston.format.combine(
-    winston.format.timestamp({
-        format: () => format(new Date(), 'yyyy-MM-dd HH:mm:ss', { timeZone: 'Europe/Warsaw' })
-    }),
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
     winston.format.json()
 );
