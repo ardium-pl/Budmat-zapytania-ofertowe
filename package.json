@@ -4,7 +4,8 @@
   "description": "Aplikacja do pobierania załączników z Gmaila w celu późniejszego OCR-owania.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "apt-get update && apt-get install -y poppler-utils"
   },
   "dependencies": {
     "@google-cloud/vision": "^4.3.2",
