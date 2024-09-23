@@ -1,14 +1,24 @@
 const winston = require('winston');
 const path = require('path');
-const { utcToZonedTime, format } = require('date-fns-tz');
+
+// Funkcja do formatowania daty w strefie czasowej Europe/Warsaw
+const formatDateInTimeZone = (date, timeZone) => {
+    return new Intl.DateTimeFormat('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: timeZone,
+        hour12: false
+    }).format(date);
+};
 
 // Konfiguracja formatu logów
 const logFormat = winston.format.combine(
     winston.format.timestamp({
-        format: () => {
-            const zonedDate = utcToZonedTime(new Date(), 'Europe/Warsaw'); // Konwersja do strefy czasowej Warsaw
-            return format(zonedDate, 'yyyy-MM-dd HH:mm:ss', { timeZone: 'Europe/Warsaw' });
-        }
+        format: () => formatDateInTimeZone(new Date(), 'Europe/Warsaw')  // Formatowanie daty
     }),
     winston.format.errors({ stack: true }),
     winston.format.json()
@@ -34,7 +44,7 @@ const logger = winston.createLogger({
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.colorize(),
-                logFormat
+                winston.format.simple()  // Można zostawić prosty format w konsoli
             )
         })
     ]
