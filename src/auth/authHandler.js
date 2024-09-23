@@ -41,7 +41,7 @@ async function authorize(credentials) {
 function getNewToken(oAuth2Client) {
     return new Promise((resolve, reject) => {
         const app = express();
-        const port = 3000;
+        const port = process.env.PORT || 3000;
 
         const authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline',
@@ -65,7 +65,7 @@ function getNewToken(oAuth2Client) {
         });
 
         app.listen(port, () => {
-            logger.info(`Server listening at http://localhost:${port}`);
+            logger.info(`Server listening at port: ${port}`);
             logger.info('app url: ' + authUrl);
             logger.warn(`Open this URL in your browser to authorize the app: ${authUrl}`);
         });
