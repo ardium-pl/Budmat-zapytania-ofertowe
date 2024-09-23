@@ -73,23 +73,35 @@ async function getEmailContent(connection, message) {
         const part = textParts[0];
         const partData = await connection.getPartData(message, part);
 
-        // imap-simple już dekoduje BASE64 i QUOTED-PRINTABLE
-        // Musimy obsłużyć tylko przypadki, gdy kodowanie nie jest UTF-8
+        // Tablica możliwych kodowań do sprawdzenia
+        const encodings = ['utf-8', 'iso-8859-2', 'windows-1250', 'latin1'];
 
-        if (part.params && part.params.charset) {
-            const charset = part.params.charset.toUpperCase();
-            if (charset !== 'UTF-8') {
-                try {
-                    return iconv.decode(Buffer.from(partData), charset);
-                } catch (error) {
-                    logger.warn(`Failed to decode with ${charset}: ${error.message}`);
+        // Funkcja do sprawdzenia, czy tekst zawiera polskie znaki
+        const containsPolishChars = (text) => /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(text);
+
+        // Próba automatycznego wykrycia kodowania
+        const detectedEncoding = chardet.detect(Buffer.from(partData));
+        if (detectedEncoding) {
+            encodings.unshift(detectedEncoding);
+        }
+
+        // Próba dekodowania z różnymi kodowaniami
+        for (const encoding of encodings) {
+            try {
+                let decodedContent = iconv.decode(Buffer.from(partData), encoding);
+                decodedContent = fixEncodingErrors(decodedContent);
+                if (containsPolishChars(decodedContent)) {
+                    logger.info(`Successfully decoded email content using ${encoding}`);
+                    return decodedContent;
                 }
+            } catch (error) {
+                logger.warn(`Failed to decode with ${encoding}: ${error.message}`);
             }
         }
 
-        // Jeśli nie ma określonego charset lub dekodowanie się nie powiodło,
-        // zwracamy oryginalną treść, która powinna być już zdekodowana przez imap-simple
-        return partData.toString();
+        // Jeśli żadne kodowanie nie zadziałało, spróbujmy usunąć nieprawidłowe znaki
+        logger.warn('All decoding attempts failed, trying to remove invalid characters');
+        return fixEncodingErrors(partData.toString());
     }
 
     return '';
@@ -150,6 +162,25 @@ async function createMetadataFile(emailDir, emailContent, attachmentResults) {
     const metadataPath = path.join(emailDir, 'metadata.json');
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
     logger.info(`Metadata saved to ${metadataPath}`);
+}
+
+function fixEncodingErrors(text) {
+    const replacements = {
+        'Â': '',
+        'Ă': 'ą',
+        'Ć': 'ć',
+        'Ĺ': 'ł',
+        'Ĺ': 'ń',
+        'Ă': 'ó',
+        'Ĺ': 'ś',
+        'Ĺş': 'ź',
+        'ĹĽ': 'ż',
+        'ĂŞ': 'ę',
+        'Ăł': 'ó',
+        'Âł': 'ł'
+    };
+
+    return text.replace(/Â|Ă|Ć|Ĺ|Ă|Ĺş|ĹĽ|ĂŞ|Ăł|Âł/g, match => replacements[match] || match);
 }
 
 async function markMessageAsSeen(connection, uid) {
