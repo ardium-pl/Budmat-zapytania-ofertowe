@@ -7,8 +7,9 @@ WORKDIR /app
 # Skopiuj package.json i package-lock.json
 COPY package*.json ./
 
-# Zainstaluj zależności
-RUN npm install --production
+# Zainstaluj zależności, w tym aktualizację @grpc/grpc-js
+RUN npm install --production && \
+    npm install @grpc/grpc-js@latest
 
 # Skopiuj resztę aplikacji
 COPY . .
