@@ -20,7 +20,6 @@ async function pdfOCR(pdfFilePath) {
     const inputPdfFolder = path.join(DATA_DIR, "attachments");
     const imagesFolder = path.join(DATA_DIR, "images");
     const outputTextFolder = path.join(DATA_DIR, "processed_attachments/pdf");
-    const fileBaseName = path.basename(pdfFilePath, ".pdf");
 
     [inputPdfFolder, imagesFolder, outputTextFolder].forEach((folder) => {
         if (!fs.existsSync(folder)) {
