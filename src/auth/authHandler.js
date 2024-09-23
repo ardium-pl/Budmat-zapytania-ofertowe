@@ -41,7 +41,7 @@ async function authorize(credentials) {
 function getNewToken(oAuth2Client) {
     return new Promise((resolve, reject) => {
         const app = express();
-        const port = process.env.PORT || 3000;
+        const port = 3000;
 
         const authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline',
