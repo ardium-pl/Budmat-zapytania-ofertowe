@@ -6,7 +6,9 @@ const {decodeFilename, isAllowedFileType, getFileExtension} = require('../utils/
 const {PROCESSED_DIR} = require('../../config/constants');
 const logger = require('../utils/logger');
 const {decode} = require("docx4js/docs");
+const chardet = require('chardet');
 const iconv = require('iconv-lite');
+const quotedPrintable = require('quoted-printable');
 
 async function processNewEmails(connection) {
     try {
@@ -70,30 +72,33 @@ async function getEmailContent(connection, message) {
     if (textParts.length > 0) {
         const partData = await connection.getPartData(message, textParts[0]);
 
-        // Próba dekodowania z różnych kodowań
-        const encodings = ['utf-8', 'iso-8859-2', 'windows-1250'];
-        for (const encoding of encodings) {
-            try {
-                const decodedContent = decode(Buffer.from(partData), encoding);
-                if (decodedContent.includes('ą') || decodedContent.includes('ć') || decodedContent.includes('ę')) {
-                    logger.info(`Successfully decoded email content using ${encoding}`);
-                    return decodedContent;
-                }
-            } catch (error) {
-                logger.warn(`Failed to decode with ${encoding}: ${error.message}`);
-            }
-        }
+        // Sprawdź, czy treść jest zakodowana w Quoted-Printable
+        const isQuotedPrintable = textParts[0].encoding === 'QUOTED-PRINTABLE';
 
-        // Jeśli żadne kodowanie nie zadziałało, zwróć oryginalną treść
-        logger.warn('Failed to decode email content, returning original');
-        return partData.toString();
+        // Dekoduj Quoted-Printable, jeśli to konieczne
+        const decodedData = isQuotedPrintable ? quotedPrintable.decode(partData.toString()) : partData;
+
+        // Wykryj kodowanie
+        const detectedEncoding = chardet.detect(Buffer.from(decodedData));
+        logger.info(`Detected encoding: ${detectedEncoding}`);
+
+        try {
+            // Konwertuj na UTF-8
+            const content = iconv.decode(Buffer.from(decodedData), detectedEncoding);
+            return content;
+        } catch (error) {
+            logger.error(`Error decoding content: ${error.message}`);
+            // Jeśli dekodowanie się nie powiedzie, zwróć oryginalną treść
+            return decodedData.toString();
+        }
     }
 
     return '';
 }
+
 async function saveEmailContent(content, emailDir) {
     const emailFilePath = path.join(emailDir, 'email_content.txt');
-    await fs.writeFile(emailFilePath, content, 'utf8');
+    await fs.writeFile(emailFilePath, content, {encoding: 'utf8'});
     logger.info(`Email content saved to ${emailFilePath}`);
 }
 
