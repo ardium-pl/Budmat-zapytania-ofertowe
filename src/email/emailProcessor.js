@@ -5,6 +5,8 @@ const {processAttachment} = require('../attachments/attachmentProcessor');
 const {decodeFilename, isAllowedFileType, getFileExtension} = require('../utils/fileUtils');
 const {PROCESSED_DIR} = require('../../config/constants');
 const logger = require('../utils/logger');
+const {decode} = require("docx4js/docs");
+const iconv = require('iconv-lite');
 
 async function processNewEmails(connection) {
     try {
@@ -67,12 +69,28 @@ async function getEmailContent(connection, message) {
 
     if (textParts.length > 0) {
         const partData = await connection.getPartData(message, textParts[0]);
-        return partData.toString('utf8');  // Use UTF-8 encoding
+
+        // Próba dekodowania z różnych kodowań
+        const encodings = ['utf-8', 'iso-8859-2', 'windows-1250'];
+        for (const encoding of encodings) {
+            try {
+                const decodedContent = decode(Buffer.from(partData), encoding);
+                if (decodedContent.includes('ą') || decodedContent.includes('ć') || decodedContent.includes('ę')) {
+                    logger.info(`Successfully decoded email content using ${encoding}`);
+                    return decodedContent;
+                }
+            } catch (error) {
+                logger.warn(`Failed to decode with ${encoding}: ${error.message}`);
+            }
+        }
+
+        // Jeśli żadne kodowanie nie zadziałało, zwróć oryginalną treść
+        logger.warn('Failed to decode email content, returning original');
+        return partData.toString();
     }
 
     return '';
 }
-
 async function saveEmailContent(content, emailDir) {
     const emailFilePath = path.join(emailDir, 'email_content.txt');
     await fs.writeFile(emailFilePath, content, 'utf8');
