@@ -40,7 +40,7 @@ async function processAttachment(filePath, extension) {
     await fs.mkdir(destDir, {recursive: true});
 
     const destFilePath = path.join(destDir, fileName);
-    const processedFilePath = path.join(destDir, `${path.parse(fileName).name}_processed.txt`);
+    const processedFilePath = path.join(destDir, `${path.parse(fileName).name}_processed.json`);
 
     await fs.copyFile(filePath, destFilePath);
     await fs.writeFile(processedFilePath, processedContent);

@@ -6,34 +6,29 @@ const logger = require('../../utils/logger');
 async function processPDF(filePath) {
     try {
         const data = await pdfExtract.extract(filePath, {});
-        let result = `PDF Content:\n\n`;
-        result += `Number of pages: ${data.pages.length}\n\n`;
-
+        let result = {
+            pageCount: data.pages.length,
+            pages: []
+        };
 
         for (let i = 0; i < data.pages.length; i++) {
             const page = data.pages[i];
-            result += `Page ${i + 1}:\n`;
-
-            const tables = extractTables(page.content);
-            if (tables.length > 0) {
-                result += `Tables found on page ${i + 1}:\n`;
-                tables.forEach((table, index) => {
-                    result += `Table ${index + 1}:\n${formatTable(table)}\n\n`;
-                });
-            } else {
-                result += `No tables found on this page.\n`;
-            }
-
-            result += `Text content:\n${extractTextContent(page.content)}\n\n`;
-
+            const pageContent = {
+                pageNumber: i + 1,
+                tables: extractTables(page.content),
+                textContent: extractTextContent(page.content)
+            };
+            result.pages.push(pageContent);
         }
-        await pdfOCR(filePath); //tutaj dostajesz JSONa, który ma przypisany cały tekst OCR
 
+        const ocrResult = await pdfOCR(filePath);
+        result.ocrContent = ocrResult;
 
-        return result;
+        logger.info(`Successfully processed PDF: ${filePath}`);
+        return JSON.stringify(result, null, 2);
     } catch (error) {
         logger.error('Error processing PDF:', error);
-        return `Error processing PDF: ${error.message}`;
+        throw error;
     }
 }
 

@@ -7,17 +7,20 @@ async function processImage(filePath) {
         const metadata = await sharp(filePath).metadata();
         const ocrData = await fileOcr(filePath);
 
-        let ocrContent;
-        // Extracting content from googleVisionText property
-        ocrContent = ocrData
+        let ocrContent = ocrData
             .map((item) => item.googleVisionText || "")
             .join("\n");
 
-        return `Image Metadata:\n${JSON.stringify(metadata, null, 2)}\n
-Image OCR data:\n${ocrContent}`;
+        const result = {
+            metadata: metadata,
+            ocrContent: ocrContent
+        };
+
+        logger.info(`Successfully processed image: ${filePath}`);
+        return JSON.stringify(result, null, 2);
     } catch (error) {
         logger.error("Error processing image:", error);
-        return `Error processing image: ${error.message}`;
+        throw error;
     }
 }
 

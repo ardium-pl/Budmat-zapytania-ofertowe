@@ -1,9 +1,12 @@
 const winston = require('winston');
 const path = require('path');
 
-// Funkcja do formatowania daty w strefie czasowej Europe/Warsaw
+const DEFAULT_LOG_LEVEL = 'info';
+const TIME_ZONE = 'Europe/Warsaw';
+const DATE_FORMAT = 'en-GB';
+
 const formatDateInTimeZone = (date, timeZone) => {
-    return new Intl.DateTimeFormat('en-GB', {
+    const options = {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -12,42 +15,46 @@ const formatDateInTimeZone = (date, timeZone) => {
         second: '2-digit',
         timeZone: timeZone,
         hour12: false
-    }).format(date);
+    };
+    return new Intl.DateTimeFormat(DATE_FORMAT, options).format(date);
 };
 
-// Konfiguracja formatu logów
 const logFormat = winston.format.combine(
     winston.format.timestamp({
-        format: () => formatDateInTimeZone(new Date(), 'Europe/Warsaw')  // Formatowanie daty
+        format: () => formatDateInTimeZone(new Date(), TIME_ZONE)
     }),
-    winston.format.errors({ stack: true }),
+    winston.format.errors({stack: true}),
     winston.format.json()
 );
 
-// Tworzenie loggera
+const getLogFilePath = (filename) => path.join(__dirname, '..', '..', 'logs', filename);
+
+const fileTransport = (filename, level = 'info') => new winston.transports.File({
+    filename: getLogFilePath(filename),
+    level,
+    format: logFormat
+});
+
+const consoleTransport = new winston.transports.Console({
+    format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+    )
+});
+
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
+    level: process.env.LOG_LEVEL || DEFAULT_LOG_LEVEL,
     format: logFormat,
     transports: [
-        // Zapisywanie wszystkich logów do pliku 'combined.log'
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/combined.log'),
-            format: logFormat
-        }),
-        // Zapisywanie logów o poziomie 'error' i wyższym do pliku 'error.log'
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/error.log'),
-            level: 'error',
-            format: logFormat
-        }),
-        // Wyświetlanie logów w konsoli
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize(),
-                winston.format.simple()  // Można zostawić prosty format w konsoli
-            )
-        })
+        fileTransport('combined.log'),
+        fileTransport('error.log', 'error'),
+        consoleTransport
     ]
+});
+
+// Error handling for file writing
+logger.on('error', (error) => {
+    console.error('Error in logger:', error);
 });
 
 module.exports = logger;
