@@ -1,5 +1,5 @@
 [phases.setup]
-commands = ["apt-get update", "apt-get install -y poppler-utils"]
+commands = ["apt-get install -y poppler-utils"]
 
 [dependencies]
 packages = ["poppler-utils"]
