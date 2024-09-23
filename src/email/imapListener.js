@@ -1,7 +1,7 @@
 const imaps = require('imap-simple');
-const { processNewEmails } = require('./emailProcessor');
-const { buildXOAuth2Token } = require('../auth/authHandler');
-const { EMAIL_ADDRESS } = require('../../config/constants');
+const {processNewEmails} = require('./emailProcessor');
+const {buildXOAuth2Token} = require('../auth/authHandler');
+const {EMAIL_ADDRESS} = require('../../config/constants');
 const logger = require('../utils/logger');
 
 async function startImapListener(auth) {

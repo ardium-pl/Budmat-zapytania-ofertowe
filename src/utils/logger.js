@@ -3,8 +3,8 @@ const path = require('path');
 
 // Konfiguracja formatu logów
 const logFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.errors({ stack: true }),
+    winston.format.timestamp({format: 'YYYY-MM-DD HH:mm:ss'}),
+    winston.format.errors({stack: true}),
     winston.format.json()
 );
 
