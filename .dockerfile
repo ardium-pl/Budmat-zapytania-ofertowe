@@ -1,20 +1,23 @@
-# Użyj oficjalnego obrazu Node.js
-FROM node:16-slim
+# Użyj pełnego obrazu Node.js zamiast wersji slim
+FROM node:16
 
 # Ustaw katalog roboczy
 WORKDIR /app
 
-# Skopiuj plik package.json i package-lock.json
+# Skopiuj package.json i package-lock.json
 COPY package*.json ./
 
 # Zainstaluj zależności
 RUN npm install --production
 
-# Skopiuj całą aplikację do obrazu
+# Skopiuj resztę aplikacji
 COPY . .
 
-# Eksponuj port (jeśli aplikacja działa na danym porcie, np. 3000)
+# Zainstaluj poppler-utils
+RUN apt-get update && apt-get install -y poppler-utils
+
+# Eksponuj port
 EXPOSE 3000
 
-# Ustaw komendę startową dla aplikacji
+# Ustaw komendę startową
 CMD ["npm", "start"]
