@@ -123,6 +123,7 @@ async function processEmailAttachments(connection, message, emailDir) {
             const mimeType = part.type;
             const extension = getFileExtension(filename);
 
+
             if (isAllowedFileType(filename, mimeType)) {
                 try {
                     const partData = await connection.getPartData(message, part);
