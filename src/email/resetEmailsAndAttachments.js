@@ -1,6 +1,6 @@
 const imaps = require('imap-simple');
 const fs = require('fs').promises;
-const { EMAIL_ADDRESS, DATA_DIR } = require('../../config/constants');
+const {EMAIL_ADDRESS, DATA_DIR} = require('../../config/constants');
 const logger = require('../utils/logger');
 
 
@@ -30,7 +30,7 @@ async function markAllAsUnseen(auth) {
             port: 993,
             tls: true,
             authTimeout: 3000,
-            tlsOptions: { rejectUnauthorized: false }
+            tlsOptions: {rejectUnauthorized: false}
         }
     };
 
@@ -57,10 +57,10 @@ async function markAllAsUnseen(auth) {
                     return;
                 }
 
-                const f = connection.imap.fetch(results, { bodies: ['HEADER'] });
+                const f = connection.imap.fetch(results, {bodies: ['HEADER']});
                 f.on('message', (msg) => {
                     msg.on('attributes', (attrs) => {
-                        const uid = attrs.uid;
+                        const {uid} = attrs;
                         connection.imap.delFlags(uid, ['\\Seen'], (err) => {
                             if (err) {
                                 logger.error(`Error marking message ${uid} as unseen:`, err);
@@ -94,7 +94,7 @@ function buildXOAuth2Token(user, accessToken) {
 
 async function removeDirectory(dirPath) {
     try {
-        await fs.rm(dirPath, { recursive: true, force: true });
+        await fs.rm(dirPath, {recursive: true, force: true});
         logger.info(`Removed directory: ${dirPath}`);
     } catch (error) {
         if (error.code !== 'ENOENT') {
@@ -105,4 +105,4 @@ async function removeDirectory(dirPath) {
     }
 }
 
-module.exports = { resetEmailsAndAttachments };
+module.exports = {resetEmailsAndAttachments};

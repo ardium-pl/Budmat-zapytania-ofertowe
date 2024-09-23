@@ -1,4 +1,4 @@
-const { PDFExtract } = require('pdf.js-extract');
+const {PDFExtract} = require('pdf.js-extract');
 const {pdfOCR} = require('./ocr.js');
 const pdfExtract = new PDFExtract();
 const logger = require('../../utils/logger');
@@ -9,11 +9,11 @@ async function processPDF(filePath) {
         let result = `PDF Content:\n\n`;
         result += `Number of pages: ${data.pages.length}\n\n`;
 
-        
+
         for (let i = 0; i < data.pages.length; i++) {
             const page = data.pages[i];
             result += `Page ${i + 1}:\n`;
-            
+
             const tables = extractTables(page.content);
             if (tables.length > 0) {
                 result += `Tables found on page ${i + 1}:\n`;
@@ -23,14 +23,13 @@ async function processPDF(filePath) {
             } else {
                 result += `No tables found on this page.\n`;
             }
-            
+
             result += `Text content:\n${extractTextContent(page.content)}\n\n`;
-            
+
         }
         await pdfOCR(filePath); //tutaj dostajesz JSONa, który ma przypisany cały tekst OCR
 
 
-        
         return result;
     } catch (error) {
         logger.error('Error processing PDF:', error);
@@ -90,4 +89,4 @@ function extractTextContent(content) {
         .join(' ');
 }
 
-module.exports = { processPDF };
+module.exports = {processPDF};

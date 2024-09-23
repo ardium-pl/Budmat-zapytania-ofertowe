@@ -1,10 +1,10 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { processPDF } = require('./fileHandler/pdfHandler');
-const { processWord } = require('./fileHandler/wordHandler');
-const { processSpreadsheet } = require('./fileHandler/spreadsheetHandler');
-const { processImage } = require('./fileHandler/imageHandler');
-const { PROCESSED_DIR } = require('../../config/constants');
+const {processPDF} = require('./fileHandler/pdfHandler');
+const {processWord} = require('./fileHandler/wordHandler');
+const {processSpreadsheet} = require('./fileHandler/spreadsheetHandler');
+const {processImage} = require('./fileHandler/imageHandler');
+const {PROCESSED_DIR} = require('../../config/constants');
 const logger = require('../utils/logger');
 
 
@@ -37,7 +37,7 @@ async function processAttachment(filePath, extension) {
 
     const formatDir = extension.toLowerCase().replace('.', '');
     const destDir = path.join(PROCESSED_DIR, formatDir);
-    await fs.mkdir(destDir, { recursive: true });
+    await fs.mkdir(destDir, {recursive: true});
 
     const destFilePath = path.join(destDir, fileName);
     const processedFilePath = path.join(destDir, `${path.parse(fileName).name}_processed.txt`);

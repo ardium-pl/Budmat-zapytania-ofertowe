@@ -1,11 +1,11 @@
-const { Poppler } = require("node-poppler");
+const {Poppler} = require("node-poppler");
 const path = require("path");
 const fs = require("fs");
-const { replacePolishCharacters } = require("./fileUtils.js");
+const {replacePolishCharacters} = require("./fileUtils.js");
 const logger = require("./logger.js");
 
 async function convertPdfToImages(pdfFilePath, saveFolder) {
-    const { default: camelcase } = await import("camelcase");
+    const {default: camelcase} = await import("camelcase");
     logger.info(`Starting conversion of PDF: ${pdfFilePath}`);
     const poppler = new Poppler();
     const outputPrefix = replacePolishCharacters(
@@ -13,9 +13,9 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
     );
     const outputFilePath = path.join(saveFolder, `${outputPrefix}`);
     const pdfInfo = {};
-    
+
     if (!fs.existsSync(saveFolder)) {
-        fs.mkdirSync(saveFolder, { recursive: true });
+        fs.mkdirSync(saveFolder, {recursive: true});
     }
 
     try {
@@ -24,7 +24,7 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
 
         ret.split('\n').map(r => r.split(': ')).forEach(r => {
             if (r.length > 1) {
-              pdfInfo[camelcase(r[0])] = r[1].trim();
+                pdfInfo[camelcase(r[0])] = r[1].trim();
             }
         });
 
@@ -43,7 +43,7 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
         for (let i = options.firstPageToConvert; i <= options.lastPageToConvert; i++) {
             const imagePathWithoutLeadingZero = `${outputFilePath}-${i}.png`;
             const imagePathWithLeadingZero = `${outputFilePath}-${i.toString().padStart(2, '0')}.png`;
-            
+
             if (fs.existsSync(imagePathWithoutLeadingZero)) {
                 imagePaths.push(imagePathWithoutLeadingZero);
             } else if (fs.existsSync(imagePathWithLeadingZero)) {
@@ -61,4 +61,4 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
     }
 }
 
-module.exports = { convertPdfToImages };
+module.exports = {convertPdfToImages};

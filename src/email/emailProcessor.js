@@ -1,9 +1,9 @@
 const fs = require('fs').promises;
 const path = require('path');
 const imaps = require('imap-simple');
-const { processAttachment } = require('../attachments/attachmentProcessor');
-const { decodeFilename, isAllowedFileType, getFileExtension } = require('../utils/fileUtils');
-const { ATTACHMENT_DIR, PROCESSED_DIR } = require('../../config/constants');
+const {processAttachment} = require('../attachments/attachmentProcessor');
+const {decodeFilename, isAllowedFileType, getFileExtension} = require('../utils/fileUtils');
+const {ATTACHMENT_DIR, PROCESSED_DIR} = require('../../config/constants');
 const logger = require('../utils/logger');
 
 async function processNewEmails(connection) {
@@ -37,7 +37,7 @@ async function processNewEmails(connection) {
                         logger.info(`Processing attachment: ${filename}`);
                         try {
                             const partData = await connection.getPartData(message, part);
-                            await fs.mkdir(ATTACHMENT_DIR, { recursive: true });
+                            await fs.mkdir(ATTACHMENT_DIR, {recursive: true});
                             const filePath = path.join(ATTACHMENT_DIR, filename);
                             await fs.writeFile(filePath, partData);
                             logger.info('Attachment saved:', filename);
@@ -101,7 +101,7 @@ async function getEmailContent(connection, message) {
 
 async function processEmailContent(content) {
     const emailDir = path.join(PROCESSED_DIR, 'emails');
-    await fs.mkdir(emailDir, { recursive: true });
+    await fs.mkdir(emailDir, {recursive: true});
     const emailFilePath = path.join(emailDir, `email_${Date.now()}.txt`);
     await fs.writeFile(emailFilePath, content);
     logger.info(`Email content saved to ${emailFilePath}`);
