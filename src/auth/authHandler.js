@@ -4,14 +4,13 @@ const {google} = require('googleapis');
 const express = require('express');
 const logger = require('../utils/logger');
 
-const CREDENTIALS_PATH = path.join(__dirname, '../../credentials.json');
 const TOKEN_PATH = path.join(__dirname, '../../token.json');
 const SCOPES = ['https://mail.google.com/'];
 
 let oAuth2Client;
 
 async function authorize(credentials) {
-    const {client_secret, client_id, redirect_uris} = credentials.web;
+    const {client_secret, client_id, redirect_uris} = credentials;
     oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
 
     try {
