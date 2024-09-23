@@ -2,6 +2,7 @@ const { PDFExtract } = require('pdf.js-extract');
 const {pdfOCR} = require('./ocr.js');
 const pdfExtract = new PDFExtract();
 const logger = require('../../utils/logger');
+const fs = require('fs').promises;
 
 async function processPDF(filePath) {
     try {
@@ -30,7 +31,7 @@ async function processPDF(filePath) {
         await pdfOCR(filePath); //tutaj dostajesz JSONa, który ma przypisany cały tekst OCR
 
 
-        
+        const ocrData = await pdfOCR(filePath);
         return result;
     } catch (error) {
         logger.error('Error processing PDF:', error);

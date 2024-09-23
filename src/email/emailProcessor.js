@@ -22,7 +22,7 @@ async function processNewEmails(connection) {
         logger.info(`Found ${messages.length} new messages`);
 
         for (const message of messages) {
-            const uid = message.attributes.uid;
+            const {uid} = message.attributes;
             const parts = imaps.getParts(message.attributes.struct);
             let processedSuccessfully = true;
 
