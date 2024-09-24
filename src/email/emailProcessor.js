@@ -10,6 +10,134 @@ const util = require('util');
 const {combineEmailData} = require("../utils/combineEmailData");
 const {processOfferData} = require("../zod-json/emailDataProcessor");
 const {z} = require("zod");
+const {Worker, isMainThread, parentPort, workerData} = require('worker_threads');
+
+const MAX_WORKERS = process.env.MAX_WORKERS || 2;
+const workerPool = new Set();
+
+
+async function processEmail(connection, message) {
+    const {uid} = message.attributes;
+    const emailId = Date.now();
+    const emailDir = path.join(PROCESSED_DIR, 'combined', `email_${emailId}`);
+
+    logger.info(`Starting to process email ${emailId}`, {uid});
+
+    try {
+        // Make sure the directory exists
+        await fs.mkdir(emailDir, {recursive: true});
+        logger.info(`Created directory for email ${emailId}`, {uid});
+
+        // Get email content
+        logger.info(`Getting email content for email ${emailId}`, {uid});
+        const emailContent = await getEmailContent(message);
+        logger.info(`Got email content for email ${emailId}`, {uid});
+
+        // Save email content
+        logger.info(`Saving email content for email ${emailId}`);
+        await saveEmailContent(emailContent, emailDir);
+        logger.info(`Saved email content for email ${emailId}`);
+
+        //Process attachments
+        logger.info(`Processing attachments for email ${emailId}`);
+        const attachmentResults = await processEmailAttachments(connection, message, emailDir);
+        logger.info(`Processed attachments for email ${emailId}`);
+
+        // Create metadata file
+        logger.info(`Creating metadata for email ${emailId}`);
+        await createMetadataFile(emailDir, emailContent, attachmentResults);
+        logger.info(`Created metadata for email ${emailId}`);
+
+        // Combine email data into a single JSON file
+
+        // Create a flag file to indicate email processing is complete
+        await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
+        logger.info(`Created processing complete flag for email ${emailId}`);
+
+        logger.info(`Combining email data for email ${emailId}`);
+        await combineEmailData(emailDir);
+        logger.info(`Combined email data for email ${emailId}`);
+
+        // Create a flag file to indicate email processing is complete
+        await fs.writeFile(path.join(emailDir, 'all_present'), '');
+        logger.info(`Created processing complete flag for email ${emailId}`);
+
+
+        await markMessageAsSeen(connection.imap, uid);
+        logger.info(`Marked message ${uid} as seen`);
+
+        startWorker(emailDir, emailId);
+    } catch (error) {
+        logger.error(`Error processing email ${emailId}:`, error);
+    }
+}
+
+function startWorker(emailDir, emailId) {
+    if (workerPool.size >= MAX_WORKERS) {
+        setTimeout(() => startWorker(emailDir, emailId), 1000);
+        return;
+    }
+
+    const worker = new Worker(__filename, {
+        workerData: {emailDir, emailId}
+    });
+
+    workerPool.add(worker);
+
+    worker.on('message', (msg) => {
+        if (msg === 'done') {
+            workerPool.delete(worker);
+        }
+    });
+
+    worker.on('error', (err) => {
+        logger.error(`Worker error for email ${emailId}:`, err);
+        workerPool.delete(worker);
+    });
+
+    worker.on('exit', (code) => {
+        if (code !== 0) {
+            logger.error(`Worker stopped with exit code ${code} for email ${emailId}`);
+        } else {
+            logger.info(`Worker completed processing for email ${emailId}`);
+        }
+        workerPool.delete(worker);
+    });
+
+    logger.info(`Worker started for email ${emailId}`);
+}
+
+if (!isMainThread) {
+    const {emailDir, emailId} = workerData;
+
+    async function processEmailWorker() {
+        try {
+            await waitForFile(path.join(emailDir, 'all_present'));
+            logger.info(`Processing offer data for email ${emailId}`);
+            await processOfferData(emailDir);
+            logger.info(`Processed email ${emailId}`);
+            parentPort.postMessage('done');
+        } catch (error) {
+            logger.error(`Error processing email ${emailId} in worker:`, error);
+        }
+    }
+
+    processEmailWorker();
+}
+
+async function waitForFile(filePath, timeout = 60000) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+        try {
+            await fs.access(filePath);
+            return;
+        } catch {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+    throw new Error('Timeout waiting for file');
+}
+
 
 async function processNewEmails(connection) {
     try {
@@ -43,72 +171,73 @@ async function processNewEmails(connection) {
     }
 }
 
-async function processEmail(connection, message) {
-    const {uid} = message.attributes;
-    const emailId = Date.now();
-    const emailDir = path.join(PROCESSED_DIR, 'combined', `email_${emailId}`);
-
-    logger.info(`Starting to process email ${emailId}`, {uid});
-
-    return new Promise(async (resolve, reject) => {
-        const timeout = setTimeout(() => {
-            logger.error(`Processing of email ${emailId} timed out`, {uid});
-            reject(new Error(`Processing of email ${emailId} timed out`));
-        }, 120000); // 120 seconds timeout
-
-        try {
-            await fs.mkdir(emailDir, {recursive: true});
-            logger.info(`Created directory for email ${emailId}`, {uid});
-
-            logger.info(`Getting email content for email ${emailId}`, {uid});
-            const emailContent = await getEmailContent(message);
-            logger.info(`Got email content for email ${emailId}`, {uid});
-
-            logger.info(`Saving email content for email ${emailId}`);
-            await saveEmailContent(emailContent, emailDir);
-            logger.info(`Saved email content for email ${emailId}`);
-
-            // Process attachments
-            logger.info(`Processing attachments for email ${emailId}`);
-            const attachmentResults = await processEmailAttachments(connection, message, emailDir);
-            logger.info(`Processed attachments for email ${emailId}`);
-
-            // Create metadata file
-            logger.info(`Creating metadata for email ${emailId}`);
-            await createMetadataFile(emailDir, emailContent, attachmentResults);
-            logger.info(`Created metadata for email ${emailId}`);
-
-            // Create a flag file to indicate email processing is complete
-            await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
-            logger.info(`Created processing complete flag for email ${emailId}`);
-
-            // Combine email data into a single JSON file
-            logger.info(`Combining email data for email ${emailId}`);
-            await combineEmailData(emailDir);
-            logger.info(`Combined email data for email ${emailId}`);
-
-            // Transform the combined data
-            logger.info(`Transforming email data for email ${emailId}`);
-            await processOfferData(emailDir);
-            logger.info(`Transformed email data for email ${emailId}`);
-
-
-            // Mark email as seen
-            await markMessageAsSeen(connection.imap, uid);
-            logger.info(`Processed and marked message ${uid} as seen`);
-
-            clearTimeout(timeout);
-            resolve();
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                logger.error(`Validation error for email ${emailId}:`, JSON.stringify(error.errors, null, 2));
-            } else {
-                logger.error(`Error processing email ${emailId}:`, error);
-            }
-            // throw error;
-        }
-    });
-}
+//
+// async function processEmail(connection, message) {
+//     const {uid} = message.attributes;
+//     const emailId = Date.now();
+//     const emailDir = path.join(PROCESSED_DIR, 'combined', `email_${emailId}`);
+//
+//     logger.info(`Starting to process email ${emailId}`, {uid});
+//
+//     return new Promise(async (resolve, reject) => {
+//         const timeout = setTimeout(() => {
+//             logger.error(`Processing of email ${emailId} timed out`, {uid});
+//             reject(new Error(`Processing of email ${emailId} timed out`));
+//         }, 120000); // 120 seconds timeout
+//
+//         try {
+//             await fs.mkdir(emailDir, {recursive: true});
+//             logger.info(`Created directory for email ${emailId}`, {uid});
+//
+//             logger.info(`Getting email content for email ${emailId}`, {uid});
+//             const emailContent = await getEmailContent(message);
+//             logger.info(`Got email content for email ${emailId}`, {uid});
+//
+//             logger.info(`Saving email content for email ${emailId}`);
+//             await saveEmailContent(emailContent, emailDir);
+//             logger.info(`Saved email content for email ${emailId}`);
+//
+//             // Process attachments
+//             logger.info(`Processing attachments for email ${emailId}`);
+//             const attachmentResults = await processEmailAttachments(connection, message, emailDir);
+//             logger.info(`Processed attachments for email ${emailId}`);
+//
+//             // Create metadata file
+//             logger.info(`Creating metadata for email ${emailId}`);
+//             await createMetadataFile(emailDir, emailContent, attachmentResults);
+//             logger.info(`Created metadata for email ${emailId}`);
+//
+//             // Create a flag file to indicate email processing is complete
+//             await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
+//             logger.info(`Created processing complete flag for email ${emailId}`);
+//
+//             // Combine email data into a single JSON file
+//             logger.info(`Combining email data for email ${emailId}`);
+//             await combineEmailData(emailDir);
+//             logger.info(`Combined email data for email ${emailId}`);
+//
+//             // Transform the combined data
+//             logger.info(`Transforming email data for email ${emailId}`);
+//             await processOfferData(emailDir);
+//             logger.info(`Transformed email data for email ${emailId}`);
+//
+//
+//             // Mark email as seen
+//             await markMessageAsSeen(connection.imap, uid);
+//             logger.info(`Processed and marked message ${uid} as seen`);
+//
+//             clearTimeout(timeout);
+//             resolve();
+//         } catch (error) {
+//             if (error instanceof z.ZodError) {
+//                 logger.error(`Validation error for email ${emailId}:`, JSON.stringify(error.errors, null, 2));
+//             } else {
+//                 logger.error(`Error processing email ${emailId}:`, error);
+//             }
+//             // throw error;
+//         }
+//     });
+// }
 
 async function getEmailContent(message) {
     const {uid} = message.attributes;
@@ -222,6 +351,10 @@ async function markMessageAsSeen(connection, uid) {
     });
 }
 
-module.exports = {
-    processNewEmails,
-};
+// Eksportuj tylko jeśli jest to główny wątek
+if (isMainThread) {
+    module.exports = {
+        processNewEmails,
+        processEmail,
+    };
+}
