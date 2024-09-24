@@ -1,6 +1,7 @@
 const winston = require('winston');
 const path = require('path');
-const colors = require('colors');
+const chalk = require('chalk');
+// UWAGA VERSION OF CHALK IS 4.1.2 inne wersje tylko na ES
 
 const DEFAULT_LOG_LEVEL = 'debug';
 const TIME_ZONE = 'Europe/Warsaw';
@@ -39,18 +40,22 @@ const fileTransport = (filename, level = 'debug') => new winston.transports.File
 });
 
 const consoleFormat = winston.format.printf(({ level, message, timestamp, label, filename }) => {
-    const colorizedLevel = level === 'info' ? colors.green(level) :
-        level === 'warn' ? colors.yellow(level) :
-            level === 'error' ? colors.red(level) :
-                level === 'debug' ? colors.blue(level) :
-                    level === 'http' ? colors.cyan(level) :
-                        level === 'verbose' ? colors.magenta(level) :
-                            level === 'silly' ? colors.grey(level) :
-                                colors.white(level);
+    const colorizedLevel =
+        level === 'info' ? chalk.green(level) :
+            level === 'warn' ? chalk.yellow(level) :
+                level === 'error' ? chalk.red(level) :
+                    level === 'debug' ? chalk.blue(level) :
+                        level === 'http' ? chalk.cyan(level) :
+                            level === 'verbose' ? chalk.magenta(level) :
+                                level === 'silly' ? chalk.grey(level) :
+                                    chalk.white(level);
 
-    return `${colors.grey(timestamp)} [${colorizedLevel}] [${colors.cyan(label)}] [${colors.blue(filename)}]: ${message}`;
+    const colorizedTimestamp = chalk.gray(timestamp);
+    const colorizedLabel = chalk.hex('#FFA500')(label); // Orange
+    const colorizedFilename = chalk.hex('#00CED1')(filename); // Dark Turquoise
+
+    return `${colorizedTimestamp} [${colorizedLevel}] [${colorizedLabel}] [${colorizedFilename}]: ${message}`;
 });
-
 const consoleTransport = new winston.transports.Console({
     format: winston.format.combine(
         winston.format.colorize(),
