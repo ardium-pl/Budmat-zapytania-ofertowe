@@ -56,6 +56,7 @@ async function processOfferData(emailDir) {
            - Użyj pojedynczej liczby, jeśli podano tylko jedną wartość np. 1240.
         5. Upewnij się, że wszystkie dane numeryczne są zapisane jako liczby, nie stringi.
         6. Dla pól produktów:
+           - nameOfProduct: nazwa produktu (np. "Blacha stalowa")
            - material: rodzaj materiału (np. "stal zimnowalcowana")
            - thickness: grubość w mm
            - width: szerokość w mm
@@ -63,8 +64,8 @@ async function processOfferData(emailDir) {
            - metalCoating: rodzaj powłoki metalicznej (jeśli podano)
            - paintCoating: rodzaj powłoki lakierniczej (jeśli podano)
            - manufacturer: producent (jeśli podano)
-           - price: cena jednostkowa
-                       - quantity: ilość (jesli podano, nie mieszaj z innymi polami)
+           - price: jeśli podano tylko jedną cenę, użyj jej jako wartości jednostkowej. Jeśli podano dwie ceny, rozbij je na net i gross.
+           - quantity: ilość (jesli podano, nie mieszaj z innymi polami)
         7. Dla szczegółów oferty (offerDetails):
            - currency: waluta oferty
            - deliveryTerms: warunki dostawy

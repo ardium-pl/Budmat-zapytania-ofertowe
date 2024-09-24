@@ -118,9 +118,9 @@ async function getEmailContent(message) {
         // Find the part that contains the full email content
         const all = message.parts.find(part => part.which === '');
 
-        if (!all) {
-            throw new Error('No full message body found');
-        }
+        // if (!all) {
+        //     throw new Error('No full message body found');
+        // }
 
         const rawEmail = all.body;
 
@@ -141,7 +141,7 @@ async function getEmailContent(message) {
         };
     } catch (err) {
         logger.error('Error fetching or parsing email', {error: err, uid});
-        throw err;
+        // throw err;
     }
 }
 
