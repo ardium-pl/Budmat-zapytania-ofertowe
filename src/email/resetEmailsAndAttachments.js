@@ -83,7 +83,7 @@ async function markAllAsUnseen(auth) {
         });
     } catch (error) {
         logger.error('Error in markAllAsUnseen:', error);
-        throw error;
+        // throw error;
     }
 }
 

@@ -105,7 +105,7 @@ async function processEmail(connection, message) {
             } else {
                 logger.error(`Error processing email ${emailId}:`, error);
             }
-            throw error;
+            // throw error;
         }
     });
 }

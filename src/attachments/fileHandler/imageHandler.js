@@ -20,7 +20,7 @@ async function processImage(filePath) {
         return JSON.stringify(result, null, 2);
     } catch (error) {
         logger.error("Error processing image:", error);
-        throw error;
+        // throw error;
     }
 }
 

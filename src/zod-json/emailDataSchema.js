@@ -20,13 +20,29 @@ const EmailDataSchema = z.object({
 });
 
 
+// const ProductSchema = z.object({
+//     itemNumber: z.string().optional(),
+//     grade: z.string().optional(),
+//     surface: z.string().optional(),
+//     thickness: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
+//     width: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
+// //     thickness: z.object({
+// //         numer: z.number(),
+// //         zestaw: z.tuple([z.number(), z.number()])
+// // }),
+//     length: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
+//     quantity: z.number().optional(),
+//     price: z.number().optional()
+// });
+
 const ProductSchema = z.object({
     itemNumber: z.string().optional(),
+    material: z.string().optional(),
     grade: z.string().optional(),
     surface: z.string().optional(),
-    thickness: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
-    width: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
-    length: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
+    thickness: z.union([z.number(), z.array(z.number()).length(2)]).optional(),
+    width: z.union([z.number(), z.array(z.number()).length(2)]).optional(),
+    length: z.union([z.number(), z.array(z.number()).length(2)]).optional(),
     quantity: z.number().optional(),
     price: z.number().optional()
 });

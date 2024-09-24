@@ -1,6 +1,6 @@
 const {OpenAI} = require('openai');
 const {zodResponseFormat} = require('openai/helpers/zod');
-const { zodToJsonSchema } = require('zod-to-json-schema');
+const {zodToJsonSchema} = require('zod-to-json-schema');
 const {EmailDataSchema, OutputSchema} = require('./emailDataSchema');
 const fs = require('fs').promises;
 const path = require('path');
@@ -21,20 +21,22 @@ async function processOfferData(emailDir) {
         const client = new OpenAI();
 
         // Convert Zod schema to JSON Schema
-        const jsonSchema = zodToJsonSchema(OutputSchema, 'offerSummary');
+        const jsonSchema = zodToJsonSchema(OutputSchema, {
+            topRef: false,      // Prevent top-level $ref
+            definitions: false  // Do not include definitions
+        });
 
         // Manually construct response_format
         const responseFormat = {
             type: 'json_schema',
             json_schema: {
-                name: 'offerSummary', // Add the required 'name' property
-                ...jsonSchema
+                name: 'offerSummary', // Required by OpenAI
+                schema: jsonSchema    // The fully expanded JSON schema
             }
         };
 
-
-        // Optional: Log the response_format for debugging
-        console.log(JSON.stringify(responseFormat, null, 2));
+        // // Optional: Log the response_format for debugging
+        // logger.debug(JSON.stringify(responseFormat, null, 2));
 
         const completion = await client.beta.chat.completions.parse({
             model: "gpt-4o-2024-08-06",
@@ -101,15 +103,15 @@ async function processOfferData(emailDir) {
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
             await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
 
-            console.log(`Processed offer data saved to ${processedDataPath}`);
+            logger.debug(`Processed offer data saved to ${processedDataPath}`);
             return cleanedData;
         } else {
-            console.log(message.refusal);
+            logger.error(message.refusal);
             throw new Error("Unexpected response from OpenAI API");
         }
     } catch (error) {
-        console.error(`Error processing offer data: ${error.message}`);
-        throw error;
+        logger.error(`Error processing offer data: ${error.message}`);
+        // throw error;
     }
 }
 

@@ -28,7 +28,7 @@ async function processPDF(filePath) {
         return JSON.stringify(result, null, 2);
     } catch (error) {
         logger.error('Error processing PDF:', error);
-        throw error;
+        // throw error;
     }
 }
 
