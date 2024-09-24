@@ -8,7 +8,8 @@ const logger = require('../utils/logger');
 const {simpleParser} = require('mailparser');
 const util = require('util');
 const {combineEmailData} = require("../utils/combineEmailData");
-const {transformEmailData} = require("../zod-json/tranfromEmailData");
+const {processEmailData} = require("../zod-json/emailDataProcessor");
+const {z} = require("zod");
 
 async function processNewEmails(connection) {
     try {
@@ -88,7 +89,7 @@ async function processEmail(connection, message) {
 
             // Transform the combined data
             logger.info(`Transforming email data for email ${emailId}`);
-            await transformEmailData(emailDir);
+            await processEmailData(emailDir);
             logger.info(`Transformed email data for email ${emailId}`);
 
 
@@ -99,9 +100,12 @@ async function processEmail(connection, message) {
             clearTimeout(timeout);
             resolve();
         } catch (error) {
-            logger.error(`Error processing email ${emailId}:`, error);
-            clearTimeout(timeout);
-            reject(error);
+            if (error instanceof z.ZodError) {
+                logger.error(`Validation error for email ${emailId}:`, JSON.stringify(error.errors, null, 2));
+            } else {
+                logger.error(`Error processing email ${emailId}:`, error);
+            }
+            throw error;
         }
     });
 }

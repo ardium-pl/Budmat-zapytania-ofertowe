@@ -69,6 +69,7 @@ async function combineEmailData() {
                     // Save combined data to 'all_{emailId}.json'
                     const emailId = folder.name.replace('email_', '');
                     const allJsonPath = path.join(emailDir, `all_${emailId}.json`);
+                    // const allJsonPath = path.join(emailDir, `all_${path.basename(emailFolderPath)}.json`);
                     await fs.writeFile(allJsonPath, JSON.stringify(combinedData, null, 2), 'utf8');
 
                     logger.info(`Combined data saved to ${allJsonPath}`);
