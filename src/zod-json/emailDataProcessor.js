@@ -19,6 +19,9 @@ async function processOfferData(emailDir) {
 
         const client = new OpenAI();
 
+        const responseFormat = zodResponseFormat(OutputSchema, 'offerSummary'); // Corrected line
+        console.log(JSON.stringify(responseFormat, null, 2)); // Debugging line (optional)
+
         const completion = await client.beta.chat.completions.parse({
             model: "gpt-4o-2024-08-06",
             messages: [
@@ -45,7 +48,7 @@ async function processOfferData(emailDir) {
            - paintCoating: rodzaj powłoki lakierniczej (jeśli podano)
            - manufacturer: producent (jeśli podano)
            - price: cena jednostkowa
-           - quantity: ilość (jesli podano, nie mieszaj z innnymi polami)
+                       - quantity: ilość (jesli podano, nie mieszaj z innymi polami)
         7. Dla szczegółów oferty (offerDetails):
            - currency: waluta oferty
            - deliveryTerms: warunki dostawy
@@ -67,7 +70,7 @@ async function processOfferData(emailDir) {
         Utwórz strukturyzowane podsumowanie oferty zgodnie z podanym schematem, uwzględniając wszystkie dostępne informacje.`
                 }
             ],
-            response_format: zodResponseFormat(OutputSchema, 'offerSummary'),
+            response_format: responseFormat, // Use the correctly formatted response
         });
 
         // Logowanie zużytych tokenów
@@ -127,11 +130,58 @@ async function processOfferData(emailDir) {
     }
 }
 
+// function cleanAndValidateData(data) {
+//     // Funkcja do czyszczenia pojedynczej wartości
+//     const cleanValue = (value) => {
+//         if (typeof value === 'string') {
+//             return value.trim() === '' ? undefined : value.trim();
+//         }
+//         if (typeof value === 'number') {
+//             return isNaN(value) ? null : value;
+//         }
+//         return value;
+//     };
+//
+//     // Rekurencyjne czyszczenie obiektu
+//     const cleanObject = (obj) => {
+//         if (Array.isArray(obj)) {
+//             return obj.map(cleanValue);
+//         }
+//         if (typeof obj === 'object' && obj !== null) {
+//             const cleaned = {};
+//             for (const [key, value] of Object.entries(obj)) {
+//                 cleaned[key] = cleanObject(value);
+//             }
+//             return cleaned;
+//         }
+//         return cleanValue(obj);
+//     };
+//
+//     // Czyszczenie całego obiektu danych
+//     const cleanedData = cleanObject(data);
+//
+//     // Dodatkowe sprawdzenia specyficzne dla naszej struktury danych
+//     if (cleanedData.products) {
+//         cleanedData.products = cleanedData.products.map(product => {
+//             if (product.length && !Array.isArray(product.length)) {
+//                 product.length = [product.length, product.length];
+//             }
+//             return product;
+//         });
+//     }
+//
+//     return cleanedData;
+// }
+
+
 function cleanAndValidateData(data) {
-    // Funkcja do czyszczenia pojedynczej wartości
     const cleanValue = (value) => {
+        if (Array.isArray(value)) {
+            return value.map(cleanValue);
+        }
         if (typeof value === 'string') {
-            return value.trim() === '' ? undefined : value.trim();
+            const trimmed = value.trim();
+            return trimmed === '' ? undefined : trimmed;
         }
         if (typeof value === 'number') {
             return isNaN(value) ? null : value;
@@ -139,12 +189,11 @@ function cleanAndValidateData(data) {
         return value;
     };
 
-    // Rekurencyjne czyszczenie obiektu
     const cleanObject = (obj) => {
         if (Array.isArray(obj)) {
-            return obj.map(cleanValue);
+            return obj.map(cleanObject);
         }
-        if (typeof obj === 'object' && obj !== null) {
+        if (obj && typeof obj === 'object') {
             const cleaned = {};
             for (const [key, value] of Object.entries(obj)) {
                 cleaned[key] = cleanObject(value);
@@ -154,21 +203,9 @@ function cleanAndValidateData(data) {
         return cleanValue(obj);
     };
 
-    // Czyszczenie całego obiektu danych
-    const cleanedData = cleanObject(data);
-
-    // Dodatkowe sprawdzenia specyficzne dla naszej struktury danych
-    if (cleanedData.products) {
-        cleanedData.products = cleanedData.products.map(product => {
-            if (product.length && !Array.isArray(product.length)) {
-                product.length = [product.length, product.length];
-            }
-            return product;
-        });
-    }
-
-    return cleanedData;
+    return cleanObject(data);
 }
+
 
 module.exports = {
     processOfferData
