@@ -54,7 +54,7 @@ async function processEmail(connection, message) {
         const timeout = setTimeout(() => {
             logger.error(`Processing of email ${emailId} timed out`, {uid});
             reject(new Error(`Processing of email ${emailId} timed out`));
-        }, 60000); // 60 seconds timeout
+        }, 120000); // 120 seconds timeout
 
         try {
             await fs.mkdir(emailDir, {recursive: true});
