@@ -4,7 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const {convertPdfToImages} = require("../../utils/convertPdfToImage.js");
 const {deleteFile} = require("../../utils/deleteFile.js");
-const logger = require("../../utils/logger.js");
+const {createLogger} = require("../../utils/logger");
+const logger = createLogger(__filename);
 const {DATA_DIR} = require("../../../config/constants");
 dotenv.config();
 

@@ -1,7 +1,8 @@
 const fs = require('fs').promises;
 const path = require('path');
 const {PROCESSED_DIR} = require('../../config/constants');
-const logger = require("./logger.js");
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
 
 
 async function combineEmailData() {

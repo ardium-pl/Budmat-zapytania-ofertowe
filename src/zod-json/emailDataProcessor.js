@@ -4,7 +4,8 @@ const {zodToJsonSchema} = require('zod-to-json-schema');
 const {EmailDataSchema, OutputSchema} = require('./emailDataSchema');
 const fs = require('fs').promises;
 const path = require('path');
-const logger = require('../utils/logger');
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
 
 async function processOfferData(emailDir) {
     const emailId = path.basename(emailDir).replace('email_', '');

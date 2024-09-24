@@ -2,7 +2,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const {google} = require('googleapis');
 const express = require('express');
-const logger = require('../utils/logger');
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
+
 
 const TOKEN_PATH = path.join(__dirname, '../../token.json');
 const SCOPES = ['https://mail.google.com/'];

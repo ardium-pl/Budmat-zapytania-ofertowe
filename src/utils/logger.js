@@ -1,7 +1,8 @@
 const winston = require('winston');
 const path = require('path');
+const colors = require('colors');
 
-const DEFAULT_LOG_LEVEL = 'debug'; // Zmienione na 'debug' dla bardziej szczegółowych logów
+const DEFAULT_LOG_LEVEL = 'debug';
 const TIME_ZONE = 'Europe/Warsaw';
 const DATE_FORMAT = 'en-GB';
 
@@ -13,7 +14,7 @@ const formatDateInTimeZone = (date, timeZone) => {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        fractionalSecondDigits: 3, // Dodajemy milisekundy dla bardziej precyzyjnego timestampa
+        fractionalSecondDigits: 3,
         timeZone: timeZone,
         hour12: false
     };
@@ -25,7 +26,7 @@ const logFormat = winston.format.combine(
         format: () => formatDateInTimeZone(new Date(), TIME_ZONE)
     }),
     winston.format.errors({ stack: true }),
-    winston.format.splat(), // Dodane dla lepszego formatowania obiektów
+    winston.format.splat(),
     winston.format.json()
 );
 
@@ -37,12 +38,17 @@ const fileTransport = (filename, level = 'debug') => new winston.transports.File
     format: logFormat
 });
 
-const consoleFormat = winston.format.printf(({ level, message, timestamp, ...metadata }) => {
-    let msg = `${timestamp} [${level}]: ${message}`;
-    if (Object.keys(metadata).length > 0) {
-        msg += '\n' + JSON.stringify(metadata, null, 2);
-    }
-    return msg;
+const consoleFormat = winston.format.printf(({ level, message, timestamp, label, filename }) => {
+    const colorizedLevel = level === 'info' ? colors.green(level) :
+        level === 'warn' ? colors.yellow(level) :
+            level === 'error' ? colors.red(level) :
+                level === 'debug' ? colors.blue(level) :
+                    level === 'http' ? colors.cyan(level) :
+                        level === 'verbose' ? colors.magenta(level) :
+                            level === 'silly' ? colors.grey(level) :
+                                colors.white(level);
+
+    return `${colors.grey(timestamp)} [${colorizedLevel}] [${colors.cyan(label)}] [${colors.blue(filename)}]: ${message}`;
 });
 
 const consoleTransport = new winston.transports.Console({
@@ -62,9 +68,28 @@ const logger = winston.createLogger({
     ]
 });
 
-// Error handling for file writing
-logger.on('error', (error) => {
-    console.error('Error in logger:', error);
-});
+function createLogger(filePath) {
+    const projectRoot = path.resolve(__dirname, '..', '..');
+    const relativePath = path.relative(projectRoot, filePath);
+    const folderStructure = path.dirname(relativePath).replace(/\\/g, '/');
+    const filename = path.basename(filePath);
 
-module.exports = logger;
+    const childLogger = logger.child({
+        label: folderStructure,
+        filename: filename
+    });
+
+    const wrapperLogger = {};
+    ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'].forEach(level => {
+        wrapperLogger[level] = (message, ...meta) => {
+            if (typeof message === 'object') {
+                message = JSON.stringify(message, null, 2);
+            }
+            childLogger[level](message, ...meta);
+        };
+    });
+
+    return wrapperLogger;
+}
+
+module.exports = {createLogger};

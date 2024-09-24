@@ -2,7 +2,8 @@ const {Poppler} = require("node-poppler");
 const path = require("path");
 const fs = require("fs");
 const {replacePolishCharacters} = require("./fileUtils.js");
-const logger = require("./logger.js");
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
 
 async function convertPdfToImages(pdfFilePath, saveFolder) {
     const {default: camelcase} = await import("camelcase");

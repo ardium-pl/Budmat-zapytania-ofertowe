@@ -1,6 +1,7 @@
 const sharp = require("sharp");
-const logger = require("../../utils/logger");
 const {fileOcr} = require("./ocr.js");
+const {createLogger} = require("../../utils/logger");
+const logger = createLogger(__filename);
 
 async function processImage(filePath) {
     try {
