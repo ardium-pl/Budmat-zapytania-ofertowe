@@ -19,6 +19,7 @@ const EmailDataSchema = z.object({
     attachments: z.array(z.any()).optional()
 });
 
+
 const ProductSchema = z.object({
     itemNumber: z.string().optional(),
     grade: z.string().optional(),
@@ -29,6 +30,7 @@ const ProductSchema = z.object({
     quantity: z.number().optional(),
     price: z.number().optional()
 });
+
 
 const OutputSchema = z.object({
     offerNumber: z.string().optional(),
@@ -55,6 +57,7 @@ const OutputSchema = z.object({
     }).optional(),
     products: z.array(ProductSchema).optional()
 });
+
 
 module.exports = {
     EmailDataSchema,

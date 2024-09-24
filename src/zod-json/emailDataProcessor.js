@@ -1,5 +1,6 @@
 const {OpenAI} = require('openai');
 const {zodResponseFormat} = require('openai/helpers/zod');
+const { zodToJsonSchema } = require('zod-to-json-schema');
 const {EmailDataSchema, OutputSchema} = require('./emailDataSchema');
 const fs = require('fs').promises;
 const path = require('path');
@@ -19,8 +20,21 @@ async function processOfferData(emailDir) {
 
         const client = new OpenAI();
 
-        const responseFormat = zodResponseFormat(OutputSchema, 'offerSummary'); // Corrected line
-        console.log(JSON.stringify(responseFormat, null, 2)); // Debugging line (optional)
+        // Convert Zod schema to JSON Schema
+        const jsonSchema = zodToJsonSchema(OutputSchema, 'offerSummary');
+
+        // Manually construct response_format
+        const responseFormat = {
+            type: 'json_schema',
+            json_schema: {
+                name: 'offerSummary', // Add the required 'name' property
+                ...jsonSchema
+            }
+        };
+
+
+        // Optional: Log the response_format for debugging
+        console.log(JSON.stringify(responseFormat, null, 2));
 
         const completion = await client.beta.chat.completions.parse({
             model: "gpt-4o-2024-08-06",
@@ -70,44 +84,13 @@ async function processOfferData(emailDir) {
         Utwórz strukturyzowane podsumowanie oferty zgodnie z podanym schematem, uwzględniając wszystkie dostępne informacje.`
                 }
             ],
-            response_format: responseFormat, // Use the correctly formatted response
+            response_format: responseFormat, // Use manually constructed response_format
         });
 
         // Logowanie zużytych tokenów
         const tokenUsage = completion.usage;
         logger.warn(`Zużyto ${tokenUsage.total_tokens} tokenów. (Prompty: ${tokenUsage.prompt_tokens}, Odpowiedź: ${tokenUsage.completion_tokens})`);
 
-
-        // const completion = await client.beta.chat.completions.parse({
-        //     model: "gpt-4o-2024-08-06",
-        //     messages: [
-        //         {
-        //             role: "system",
-        //   content: `Jesteś asystentem, który analizuje dane ofert i tworzy strukturyzowane podsumowania. Obecna data to 24 września 2024.
-        //
-        //   Przestrzegaj następujących zasad:
-        //   1. Jeśli informacja nie jest explicite podana w danych wejściowych, pozostaw pole puste (null dla liczb, undefined dla stringów, szczegolnie dla quantity jak nie ma podanego to napisz null).
-        //   2. Nie używaj danych z jednego pola do wypełnienia innego.
-        //   3. Dla zakresów (np. długość od-do, albo dla min-max), użyj tablicy dwuelementowej [min, max], w przypadku jej braku zostaw jedna dana.
-        //   4. Upewnij się, że dane numeryczne są faktycznie liczbami, a nie stringami.
-        //   5. Nie dodawaj żadnych informacji, których nie ma w danych wejściowych.`
-        //         },
-        //         {
-        //             role: "user",
-        //             content: `Przeanalizuj poniższe dane oferty i utwórz podsumowanie:
-        //
-        //   Temat e-maila: ${validatedData.subject}
-        //   Treść e-maila: ${validatedData.body}
-        //   Załączniki: ${validatedData.metadata.attachments.map(att => att.filename).join(', ')}
-        //
-        //   Dane z załączników (jeśli dostępne):
-        //   ${JSON.stringify(validatedData.attachments || [], null, 2)}
-        //
-        //   Utwórz strukturyzowane podsumowanie oferty zgodnie z podanym schematem.`
-        //         }
-        //     ],
-        //     response_format: zodResponseFormat(OutputSchema, 'offerSummary'),
-        // });
 
         const message = completion.choices[0]?.message;
         if (message?.parsed) {
@@ -129,49 +112,6 @@ async function processOfferData(emailDir) {
         throw error;
     }
 }
-
-// function cleanAndValidateData(data) {
-//     // Funkcja do czyszczenia pojedynczej wartości
-//     const cleanValue = (value) => {
-//         if (typeof value === 'string') {
-//             return value.trim() === '' ? undefined : value.trim();
-//         }
-//         if (typeof value === 'number') {
-//             return isNaN(value) ? null : value;
-//         }
-//         return value;
-//     };
-//
-//     // Rekurencyjne czyszczenie obiektu
-//     const cleanObject = (obj) => {
-//         if (Array.isArray(obj)) {
-//             return obj.map(cleanValue);
-//         }
-//         if (typeof obj === 'object' && obj !== null) {
-//             const cleaned = {};
-//             for (const [key, value] of Object.entries(obj)) {
-//                 cleaned[key] = cleanObject(value);
-//             }
-//             return cleaned;
-//         }
-//         return cleanValue(obj);
-//     };
-//
-//     // Czyszczenie całego obiektu danych
-//     const cleanedData = cleanObject(data);
-//
-//     // Dodatkowe sprawdzenia specyficzne dla naszej struktury danych
-//     if (cleanedData.products) {
-//         cleanedData.products = cleanedData.products.map(product => {
-//             if (product.length && !Array.isArray(product.length)) {
-//                 product.length = [product.length, product.length];
-//             }
-//             return product;
-//         });
-//     }
-//
-//     return cleanedData;
-// }
 
 
 function cleanAndValidateData(data) {
