@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 const {simpleParser} = require('mailparser');
 const util = require('util');
 const {combineEmailData} = require("../utils/combineEmailData");
-const {processEmailData} = require("../zod-json/emailDataProcessor");
+const {processOfferData} = require("../zod-json/emailDataProcessor");
 const {z} = require("zod");
 
 async function processNewEmails(connection) {
@@ -89,7 +89,7 @@ async function processEmail(connection, message) {
 
             // Transform the combined data
             logger.info(`Transforming email data for email ${emailId}`);
-            await processEmailData(emailDir);
+            await processOfferData(emailDir);
             logger.info(`Transformed email data for email ${emailId}`);
 
 
