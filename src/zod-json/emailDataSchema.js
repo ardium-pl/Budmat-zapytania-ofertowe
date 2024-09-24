@@ -23,9 +23,9 @@ const ProductSchema = z.object({
     itemNumber: z.string().optional(),
     grade: z.string().optional(),
     surface: z.string().optional(),
-    thickness: z.number().optional(),
-    width: z.number().optional(),
-    length: z.number().optional(),
+  thickness: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
+  width: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
+  length: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
     quantity: z.number().optional(),
     price: z.number().optional()
 });
@@ -46,9 +46,10 @@ const OutputSchema = z.object({
         }).optional()
     }).optional(),
     offerDetails: z.object({
-        paymentTerms: z.string().optional(),
-        deliveryTerms: z.string().optional(),
         currency: z.string().optional(),
+        deliveryTerms: z.string().optional(),
+        deliveryDate: z.string().optional(),
+        paymentTerms: z.string().optional(),
         totalQuantity: z.number().optional(),
         periodOffered: z.string().optional()
     }).optional(),
