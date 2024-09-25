@@ -44,14 +44,12 @@ async function createSheetAndInsertData(emailDir) {
         const newSheetId = duplicateResponse.data.replies[0].duplicateSheet.properties.sheetId;
 
         const values = [
-            ['Offer Number', 'Offer Date', 'Customer Name', 'Customer Location', 'Supplier Name', 'Currency', 'Payment Terms', 'Total Quantity'],
-            [processedData.offerNumber, processedData.offerDate, processedData.customer.name, processedData.customer.location, processedData.supplier.name, processedData.offerDetails.currency, processedData.offerDetails.paymentTerms, processedData.offerDetails.totalQuantity],
+            [processedData.supplier.name, processedData.offerDetails.currency, processedData.offerDetails.deliveryTerms, processedData.offerDetails.deliveryDate, processedData.offerDetails.paymentTerms],
             [],
-            ['Products'],
-            ['Name of Product', 'Quantity', 'Net Price', 'Gross Price'],
-            [processedData.products[0].nameOfProduct, processedData.offerDetails.totalQuantity, '', ''],
             [],
-            ['Material', 'Grubość', 'Szerokość', 'Gatunek', 'Powłoka metaliczna', 'Powłoka lakiernicza', 'Producent', 'Cena netto', 'Cena brutto']
+            [],
+            [],
+            [],
         ];
 
         processedData.products.forEach(product => {
@@ -63,8 +61,7 @@ async function createSheetAndInsertData(emailDir) {
                 product.surface || '',
                 '',  // Powłoka lakiernicza - brak w JSON
                 '',  // Producent - brak w JSON
-                product.price && product.price.net ? product.price.net : 'N/A',
-                product.price && product.price.gross ? product.price.gross : 'N/A'
+                product.price || 'N/A',
             ]);
         });
 
@@ -72,54 +69,9 @@ async function createSheetAndInsertData(emailDir) {
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetName}!A1`,
+            range: `${sheetName}!A2`,
             valueInputOption: 'RAW',
             resource,
-        });
-
-        // Formatowanie
-        const requests = [
-            {
-                repeatCell: {
-                    range: {
-                        sheetId: newSheetId,
-                        startRowIndex: 0,
-                        endRowIndex: 1,
-                        startColumnIndex: 0,
-                        endColumnIndex: 9
-                    },
-                    cell: {
-                        userEnteredFormat: {
-                            backgroundColor: { red: 0.8, green: 0, blue: 0 },
-                            textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }
-                        }
-                    },
-                    fields: 'userEnteredFormat(backgroundColor,textFormat)'
-                }
-            },
-            {
-                repeatCell: {
-                    range: {
-                        sheetId: newSheetId,
-                        startRowIndex: 7,
-                        endRowIndex: 8,
-                        startColumnIndex: 0,
-                        endColumnIndex: 9
-                    },
-                    cell: {
-                        userEnteredFormat: {
-                            backgroundColor: { red: 0.8, green: 0, blue: 0 },
-                            textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }
-                        }
-                    },
-                    fields: 'userEnteredFormat(backgroundColor,textFormat)'
-                }
-            }
-        ];
-
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: SPREADSHEET_ID,
-            resource: { requests }
         });
 
         logger.debug(`Arkusz utworzony i dane wstawione pomyślnie.`);
