@@ -5,7 +5,9 @@ const express = require('express');
 const {createLogger}  = require('../utils/logger');
 const logger = createLogger(__filename);
 
-const TOKEN_PATH = path.join(__dirname, '../../token.json');
+// Utwórz nowy folder w /app/processed_attachments o nazwie 'token_storage'
+const TOKEN_DIR = path.join('/app/processed_attachments', 'token_storage');
+const TOKEN_PATH = path.join(TOKEN_DIR, 'token.json');
 const SCOPES = ['https://mail.google.com/'];
 
 let oAuth2Client;
@@ -13,6 +15,15 @@ let oAuth2Client;
 async function authorize(credentials) {
     const {client_secret, client_id, redirect_uris} = credentials;
     oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
+
+    // Sprawdź, czy folder istnieje, a jeśli nie, utwórz go
+    try {
+        await fs.mkdir(TOKEN_DIR, { recursive: true });
+        logger.info(`Utworzono folder na tokeny: ${TOKEN_DIR}`);
+    } catch (err) {
+        logger.error(`Błąd przy tworzeniu folderu ${TOKEN_DIR}:`, err);
+        throw err;
+    }
 
     logger.info(`Próba odczytu tokenu z pliku: ${TOKEN_PATH}`);
 
@@ -60,6 +71,8 @@ function getNewToken(oAuth2Client) {
             try {
                 const {tokens} = await oAuth2Client.getToken(code);
                 oAuth2Client.setCredentials(tokens);
+
+                // Zapisz nowo wygenerowany token w pliku
                 await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens));
                 logger.info(`Nowy token zapisany w pliku: ${TOKEN_PATH}`);
                 logger.silly(`Pełna ścieżka do pliku z tokenem: ${path.resolve(TOKEN_PATH)}`);
@@ -90,6 +103,7 @@ module.exports = {
     getNewToken,
     buildXOAuth2Token
 };
+
 
 
 
