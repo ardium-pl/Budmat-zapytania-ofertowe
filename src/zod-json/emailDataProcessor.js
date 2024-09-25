@@ -109,7 +109,7 @@ async function processOfferData(emailDir) {
             return cleanedData;
         } else {
             logger.error(message.refusal);
-            throw new Error("Unexpected response from OpenAI API");
+            // throw new Error("Unexpected response from OpenAI API");
         }
     } catch (error) {
         logger.error(`Error processing offer data: ${error.message}`);

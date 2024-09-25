@@ -12,6 +12,7 @@ const {combineEmailData} = require("../utils/combineEmailData");
 const {processOfferData} = require("../zod-json/emailDataProcessor");
 const {z} = require("zod");
 const {Worker, isMainThread, parentPort, workerData} = require('worker_threads');
+const {createSheetAndInsertData} = require("../google-sheets/google-sheets-api");
 
 const MAX_WORKERS = process.env.MAX_WORKERS || 2;
 const workerPool = new Set();
@@ -117,7 +118,11 @@ if (!isMainThread) {
             logger.info(`Processing offer data for email ${emailId}`);
             await processOfferData(emailDir);
             logger.info(`Processed email ${emailId}`);
+            // await fs.writeFile(path.join(emailDir, 'zod_fitting_done'), '');
             parentPort.postMessage('done');
+
+            await createSheetAndInsertData(emailDir);
+            logger.info(`Inserted data to Google Sheets for email ${emailId}`);
         } catch (error) {
             logger.error(`Error processing email ${emailId} in worker:`, error);
         }

@@ -14,6 +14,8 @@ async function authorize(credentials) {
     const {client_secret, client_id, redirect_uris} = credentials;
     oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
 
+    logger.info(`Próba odczytu tokenu z pliku: ${TOKEN_PATH}`);
+
     try {
         const token = JSON.parse(await fs.readFile(TOKEN_PATH));
         oAuth2Client.setCredentials(token);
