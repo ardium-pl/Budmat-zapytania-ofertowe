@@ -17,7 +17,7 @@ async function authorize(credentials) {
     logger.info(`Próba odczytu tokenu z pliku: ${TOKEN_PATH}`);
 
     try {
-        const token = JSON.parse(await fs.readFile(TOKEN_PATH));
+        const token = JSON.parse(process.env.GOOGLE_AUTH_TOKEN) || JSON.parse(await fs.readFile(TOKEN_PATH));
         oAuth2Client.setCredentials(token);
 
         logger.silly(`Token odczytany z pliku: ${TOKEN_PATH}`);
