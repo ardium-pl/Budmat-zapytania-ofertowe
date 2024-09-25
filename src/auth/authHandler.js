@@ -110,6 +110,8 @@ async function authorize(credentials) {
     const {client_secret, client_id, redirect_uris} = credentials;
     oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
 
+    logger.info(`Próba odczytu tokenu z pliku: ${TOKEN_PATH}`);
+
     try {
         const token = JSON.parse(await fs.readFile(TOKEN_PATH));
         oAuth2Client.setCredentials(token);
@@ -122,8 +124,11 @@ async function authorize(credentials) {
             }
             token.access_token = tokens.access_token;
             token.expiry_date = tokens.expiry_date;
-            fs.writeFile(TOKEN_PATH, JSON.stringify(token));
-            logger.info(`Token zaktualizowany i zapisany w pliku: ${TOKEN_PATH}`);
+            fs.writeFile(TOKEN_PATH, JSON.stringify(token))
+                .then(() => logger.info(`Token zaktualizowany i zapisany w pliku: ${TOKEN_PATH}`))
+                .catch((err) => logger.error(`Błąd podczas zapisywania tokenu: ${err}`));
+
+            logger.info(`Token odświeżony. Nowa data wygaśnięcia: ${new Date(tokens.expiry_date).toLocaleString()}`);
         });
 
         await refreshTokenIfNeeded();
@@ -134,6 +139,7 @@ async function authorize(credentials) {
         logger.silly(`Autentykacja zakończona sukcesem, użyto tokenu z: ${TOKEN_PATH}`);
         return oAuth2Client;
     } catch (err) {
+        logger.warn(`Nie znaleziono istniejącego tokenu. Rozpoczynam proces uzyskiwania nowego tokenu.`);
         logger.error(`Błąd podczas odczytu tokenu z ${TOKEN_PATH}:`, err);
         return getNewToken(oAuth2Client);
     }
@@ -143,19 +149,22 @@ async function refreshTokenIfNeeded() {
     try {
         if (oAuth2Client.isTokenExpiring()) {
             logger.info('Token wygasa, próba odświeżenia...');
-            await oAuth2Client.refreshAccessToken();
+            const { credentials } = await oAuth2Client.refreshAccessToken();
+            oAuth2Client.setCredentials(credentials);
             logger.info('Token odświeżony pomyślnie');
+            logger.info(`Nowa data wygaśnięcia tokenu: ${new Date(credentials.expiry_date).toLocaleString()}`);
         } else {
             logger.silly('Token nadal ważny, odświeżanie nie jest konieczne');
         }
+        return true;
     } catch (error) {
         logger.error('Błąd podczas odświeżania tokenu:', error);
-        // Tutaj możesz dodać dodatkową logikę obsługi błędów, np. powiadomienie administratora
+        return false;
     }
 }
 
 function getNewToken(oAuth2Client) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const app = express();
         const port = 3000;
 
@@ -176,8 +185,8 @@ function getNewToken(oAuth2Client) {
                 resolve(oAuth2Client);
             } catch (err) {
                 logger.error('Błąd podczas pobierania tokenu:', err);
-                res.send('Błąd podczas pobierania tokenu.');
-                reject(err);
+                res.send('Błąd podczas pobierania tokenu. Spróbuj ponownie.');
+                resolve(null);
             }
         });
 
@@ -197,5 +206,6 @@ function buildXOAuth2Token(user, accessToken) {
 module.exports = {
     authorize,
     getNewToken,
-    buildXOAuth2Token
+    buildXOAuth2Token,
+    refreshTokenIfNeeded
 };

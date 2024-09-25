@@ -1,26 +1,33 @@
 const imaps = require('imap-simple');
 const { processNewEmails, processEmail } = require('./emailProcessor');
-const { buildXOAuth2Token } = require('../auth/authHandler');
+const { buildXOAuth2Token, refreshTokenIfNeeded } = require('../auth/authHandler');
 const { EMAIL_ADDRESS } = require('../../config/constants');
 const {createLogger}  = require('../utils/logger');
 const logger = createLogger(__filename);
 
 async function startImapListener(auth) {
     const getAccessToken = async () => {
-        if (auth.isTokenExpiring()) {
-            await auth.refreshAccessToken();
-            logger.info('Token refreshed');
+        const refreshSuccessful = await refreshTokenIfNeeded();
+        if (refreshSuccessful) {
+            logger.info('Token sprawdzony i odświeżony, jeśli było to konieczne');
+            return auth.credentials.access_token;
+        } else {
+            logger.error('Nie udało się odświeżyć tokenu');
+            return null;
         }
-        return auth.credentials.access_token;
     };
-
-    const accessToken = await getAccessToken();
-    const xoauth2Token = buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
 
     const config = {
         imap: {
             user: EMAIL_ADDRESS,
-            xoauth2: xoauth2Token,
+            xoauth2: async () => {
+                const accessToken = await getAccessToken();
+                if (!accessToken) {
+                    logger.error('Brak ważnego tokenu dostępu');
+                    return null;
+                }
+                return buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
+            },
             host: 'imap.gmail.com',
             port: 993,
             tls: true,
@@ -30,37 +37,48 @@ async function startImapListener(auth) {
             authTimeout: 30000,
         },
         onmail: async () => {
-            logger.info('New email received. Processing...');
+            logger.info('Nowy email otrzymany. Przetwarzanie...');
             try {
                 const connection = await imaps.connect(config);
                 await processNewEmail(connection);
                 await connection.end();
             } catch (error) {
-                logger.error('Error processing new email:', error);
+                logger.error('Błąd podczas przetwarzania nowego emaila:', error);
             }
         },
     };
 
-    try {
-        const connection = await imaps.connect(config);
-        logger.info('Connected to IMAP server');
+    async function attemptConnection() {
+        try {
+            logger.info(`Próba połączenia z IMAP używając adresu: ${EMAIL_ADDRESS}`);
+            const connection = await imaps.connect(config);
+            logger.info('Połączono z serwerem IMAP');
 
-        // Initial scan of unseen messages
-        await processNewEmails(connection);
+            // Początkowe skanowanie nieprzeczytanych wiadomości
+            await processNewEmails(connection);
 
-        logger.info('Listening for new emails...');
+            logger.info('Nasłuchiwanie nowych emaili...');
 
-        // Keep the connection open to listen for new emails
-        connection.imap.on('mail', config.onmail);
-    } catch (err) {
-        logger.error('IMAP connection error:', err);
+            // Utrzymuj połączenie otwarte, aby nasłuchiwać nowe emaile
+            connection.imap.on('mail', config.onmail);
+
+            connection.imap.on('error', (err) => {
+                logger.error('Błąd połączenia IMAP:', err);
+                setTimeout(attemptConnection, 60000); // Próba ponownego połączenia po 1 minucie
+            });
+        } catch (err) {
+            logger.error('Błąd podczas próby połączenia IMAP:', err);
+            setTimeout(attemptConnection, 60000); // Próba ponownego połączenia po 1 minucie
+        }
     }
+
+    attemptConnection();
 }
 
 async function processNewEmail(connection) {
     try {
         await connection.openBox('INBOX');
-        logger.info('Opened INBOX');
+        logger.info('Otwarto INBOX');
 
         const searchCriteria = ['UNSEEN'];
         const fetchOptions = {
@@ -70,19 +88,19 @@ async function processNewEmail(connection) {
         };
 
         const messages = await connection.search(searchCriteria, fetchOptions);
-        logger.info(`Found ${messages.length} new messages`);
+        logger.info(`Znaleziono ${messages.length} nowych wiadomości`);
 
         for (const message of messages) {
             try {
                 await processEmail(connection, message);
             } catch (error) {
-                logger.error('Error processing message:', error);
+                logger.error('Błąd podczas przetwarzania wiadomości:', error);
             }
         }
 
-        logger.info('Finished processing new messages');
+        logger.info('Zakończono przetwarzanie nowych wiadomości');
     } catch (error) {
-        logger.error('Error in processNewEmail:', error);
+        logger.error('Błąd w processNewEmail:', error);
     }
 }
 
