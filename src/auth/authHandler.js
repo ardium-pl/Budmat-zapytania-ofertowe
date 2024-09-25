@@ -5,7 +5,7 @@ const express = require('express');
 const {createLogger}  = require('../utils/logger');
 const logger = createLogger(__filename);
 
-const TOKEN_PATH = path.join(__dirname, '../../token.json');
+const TOKEN_PATH = path.join(__dirname, '../../processed_attachments/token.json');
 const SCOPES = ['https://mail.google.com/'];
 
 let oAuth2Client;
