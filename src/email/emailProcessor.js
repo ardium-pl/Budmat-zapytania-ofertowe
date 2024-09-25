@@ -4,7 +4,7 @@ const imaps = require('imap-simple');
 const {processAttachment} = require('../attachments/attachmentProcessor');
 const {decodeFilename, isAllowedFileType, getFileExtension} = require('../utils/fileUtils');
 const {PROCESSED_DIR} = require('../../config/constants');
-const {createLogger}  = require('../utils/logger');
+const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 const {simpleParser} = require('mailparser');
 const util = require('util');
@@ -49,12 +49,11 @@ async function processEmail(connection, message) {
         await createMetadataFile(emailDir, emailContent, attachmentResults);
         logger.info(`Created metadata for email ${emailId}`);
 
-        // Combine email data into a single JSON file
-
         // Create a flag file to indicate email processing is complete
         await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
         logger.info(`Created processing complete flag for email ${emailId}`);
 
+        // Combine email data into a single JSON file
         logger.info(`Combining email data for email ${emailId}`);
         await combineEmailData(emailDir);
         logger.info(`Combined email data for email ${emailId}`);
@@ -108,6 +107,7 @@ function startWorker(emailDir, emailId) {
     logger.info(`Worker started for email ${emailId}`);
 }
 
+// Task for worker threads
 if (!isMainThread) {
     const {emailDir, emailId} = workerData;
 
@@ -171,74 +171,6 @@ async function processNewEmails(connection) {
         logger.error('Error in processNewEmails:', error);
     }
 }
-
-//
-// async function processEmail(connection, message) {
-//     const {uid} = message.attributes;
-//     const emailId = Date.now();
-//     const emailDir = path.join(PROCESSED_DIR, 'combined', `email_${emailId}`);
-//
-//     logger.info(`Starting to process email ${emailId}`, {uid});
-//
-//     return new Promise(async (resolve, reject) => {
-//         const timeout = setTimeout(() => {
-//             logger.error(`Processing of email ${emailId} timed out`, {uid});
-//             reject(new Error(`Processing of email ${emailId} timed out`));
-//         }, 120000); // 120 seconds timeout
-//
-//         try {
-//             await fs.mkdir(emailDir, {recursive: true});
-//             logger.info(`Created directory for email ${emailId}`, {uid});
-//
-//             logger.info(`Getting email content for email ${emailId}`, {uid});
-//             const emailContent = await getEmailContent(message);
-//             logger.info(`Got email content for email ${emailId}`, {uid});
-//
-//             logger.info(`Saving email content for email ${emailId}`);
-//             await saveEmailContent(emailContent, emailDir);
-//             logger.info(`Saved email content for email ${emailId}`);
-//
-//             // Process attachments
-//             logger.info(`Processing attachments for email ${emailId}`);
-//             const attachmentResults = await processEmailAttachments(connection, message, emailDir);
-//             logger.info(`Processed attachments for email ${emailId}`);
-//
-//             // Create metadata file
-//             logger.info(`Creating metadata for email ${emailId}`);
-//             await createMetadataFile(emailDir, emailContent, attachmentResults);
-//             logger.info(`Created metadata for email ${emailId}`);
-//
-//             // Create a flag file to indicate email processing is complete
-//             await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
-//             logger.info(`Created processing complete flag for email ${emailId}`);
-//
-//             // Combine email data into a single JSON file
-//             logger.info(`Combining email data for email ${emailId}`);
-//             await combineEmailData(emailDir);
-//             logger.info(`Combined email data for email ${emailId}`);
-//
-//             // Transform the combined data
-//             logger.info(`Transforming email data for email ${emailId}`);
-//             await processOfferData(emailDir);
-//             logger.info(`Transformed email data for email ${emailId}`);
-//
-//
-//             // Mark email as seen
-//             await markMessageAsSeen(connection.imap, uid);
-//             logger.info(`Processed and marked message ${uid} as seen`);
-//
-//             clearTimeout(timeout);
-//             resolve();
-//         } catch (error) {
-//             if (error instanceof z.ZodError) {
-//                 logger.error(`Validation error for email ${emailId}:`, JSON.stringify(error.errors, null, 2));
-//             } else {
-//                 logger.error(`Error processing email ${emailId}:`, error);
-//             }
-//             // throw error;
-//         }
-//     });
-// }
 
 async function getEmailContent(message) {
     const {uid} = message.attributes;

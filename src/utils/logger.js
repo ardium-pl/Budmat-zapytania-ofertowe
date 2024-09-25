@@ -1,11 +1,13 @@
 const winston = require('winston');
 const path = require('path');
 const chalk = require('chalk');
-// UWAGA VERSION OF CHALK IS 4.1.2 inne wersje tylko na ES
 
 const DEFAULT_LOG_LEVEL = 'debug';
 const TIME_ZONE = 'Europe/Warsaw';
 const DATE_FORMAT = 'en-GB';
+
+// Wymuszenie kolorów
+chalk.level = 3;
 
 const formatDateInTimeZone = (date, timeZone) => {
     const options = {
@@ -26,7 +28,7 @@ const logFormat = winston.format.combine(
     winston.format.timestamp({
         format: () => formatDateInTimeZone(new Date(), TIME_ZONE)
     }),
-    winston.format.errors({ stack: true }),
+    winston.format.errors({stack: true}),
     winston.format.splat(),
     winston.format.json()
 );
@@ -39,7 +41,7 @@ const fileTransport = (filename, level = 'debug') => new winston.transports.File
     format: logFormat
 });
 
-const consoleFormat = winston.format.printf(({ level, message, timestamp, label, filename }) => {
+const consoleFormat = winston.format.printf(({level, message, timestamp, label, filename}) => {
     const colorizedLevel =
         level === 'info' ? chalk.green(level) :
             level === 'warn' ? chalk.yellow(level) :
@@ -56,6 +58,7 @@ const consoleFormat = winston.format.printf(({ level, message, timestamp, label,
 
     return `${colorizedTimestamp} [${colorizedLevel}] [${colorizedLabel}] [${colorizedFilename}]: ${message}`;
 });
+
 const consoleTransport = new winston.transports.Console({
     format: winston.format.combine(
         winston.format.colorize(),
