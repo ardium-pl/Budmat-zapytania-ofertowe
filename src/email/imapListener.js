@@ -24,9 +24,11 @@ async function startImapListener(auth) {
                 const accessToken = await getAccessToken();
                 if (!accessToken) {
                     logger.error('Brak ważnego tokenu dostępu');
-                    return null;
+                    return '';  // Zwracamy pusty string zamiast null
                 }
-                return buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
+                const token = buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
+                logger.info(`Wygenerowany token XOAUTH2 (pierwsze 10 znaków): ${token.substring(0, 10)}...`);
+                return token;
             },
             host: 'imap.gmail.com',
             port: 993,

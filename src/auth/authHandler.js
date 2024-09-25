@@ -199,6 +199,10 @@ function getNewToken(oAuth2Client) {
 }
 
 function buildXOAuth2Token(user, accessToken) {
+    if (typeof user !== 'string' || typeof accessToken !== 'string') {
+        logger.error(`Nieprawidłowe dane wejściowe dla buildXOAuth2Token. User: ${typeof user}, AccessToken: ${typeof accessToken}`);
+        return ''; // Zwracamy pusty string w przypadku błędnych danych wejściowych
+    }
     const authString = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`;
     return Buffer.from(authString).toString('base64');
 }
