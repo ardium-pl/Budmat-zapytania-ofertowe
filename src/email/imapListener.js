@@ -24,18 +24,19 @@ async function startImapListener(auth) {
                 const accessToken = await getAccessToken();
                 if (!accessToken) {
                     logger.error('Brak ważnego tokenu dostępu');
-                    return '';  // Zwracamy pusty string zamiast null
+                    return '';
                 }
+                logger.info(`Typ access_token przed generowaniem XOAUTH2: ${typeof accessToken}`);
+                logger.info(`Długość access_token przed generowaniem XOAUTH2: ${accessToken.length}`);
                 const token = buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
-                logger.info(`Wygenerowany token XOAUTH2 (pierwsze 10 znaków): ${token.substring(0, 10)}...`);
+                logger.info(`Typ wygenerowanego tokenu XOAUTH2: ${typeof token}`);
+                logger.info(`Długość wygenerowanego tokenu XOAUTH2: ${token.length}`);
                 return token;
             },
             host: 'imap.gmail.com',
             port: 993,
             tls: true,
-            tlsOptions: {
-                rejectUnauthorized: false,
-            },
+            tlsOptions: { rejectUnauthorized: false },
             authTimeout: 30000,
         },
         onmail: async () => {
@@ -66,11 +67,11 @@ async function startImapListener(auth) {
 
             connection.imap.on('error', (err) => {
                 logger.error('Błąd połączenia IMAP:', err);
-                setTimeout(attemptConnection, 60000); // Próba ponownego połączenia po 1 minucie
+                setTimeout(attemptConnection, 60000);
             });
         } catch (err) {
             logger.error('Błąd podczas próby połączenia IMAP:', err);
-            setTimeout(attemptConnection, 60000); // Próba ponownego połączenia po 1 minucie
+            setTimeout(attemptConnection, 60000);
         }
     }
 

@@ -117,14 +117,14 @@ async function authorize(credentials) {
         oAuth2Client.setCredentials(token);
 
         logger.silly(`Token odczytany z pliku: ${TOKEN_PATH}`);
+        logger.info(`Typ access_token: ${typeof token.access_token}`);
+        logger.info(`Długość access_token: ${token.access_token.length}`);
 
         oAuth2Client.on('tokens', (tokens) => {
-            if (tokens.refresh_token) {
-                token.refresh_token = tokens.refresh_token;
-            }
-            token.access_token = tokens.access_token;
-            token.expiry_date = tokens.expiry_date;
-            fs.writeFile(TOKEN_PATH, JSON.stringify(token))
+            logger.info('Otrzymano nowe tokeny');
+            logger.info(`Typ nowego access_token: ${typeof tokens.access_token}`);
+            logger.info(`Długość nowego access_token: ${tokens.access_token.length}`);
+            fs.writeFile(TOKEN_PATH, JSON.stringify(tokens))
                 .then(() => logger.info(`Token zaktualizowany i zapisany w pliku: ${TOKEN_PATH}`))
                 .catch((err) => logger.error(`Błąd podczas zapisywania tokenu: ${err}`));
 
@@ -152,7 +152,8 @@ async function refreshTokenIfNeeded() {
             const { credentials } = await oAuth2Client.refreshAccessToken();
             oAuth2Client.setCredentials(credentials);
             logger.info('Token odświeżony pomyślnie');
-            logger.info(`Nowa data wygaśnięcia tokenu: ${new Date(credentials.expiry_date).toLocaleString()}`);
+            logger.info(`Typ odświeżonego access_token: ${typeof credentials.access_token}`);
+            logger.info(`Długość odświeżonego access_token: ${credentials.access_token.length}`);
         } else {
             logger.silly('Token nadal ważny, odświeżanie nie jest konieczne');
         }
@@ -204,7 +205,9 @@ function buildXOAuth2Token(user, accessToken) {
         return ''; // Zwracamy pusty string w przypadku błędnych danych wejściowych
     }
     const authString = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`;
-    return Buffer.from(authString).toString('base64');
+    const token = Buffer.from(authString).toString('base64');
+    logger.info(`Wygenerowany token XOAUTH2 (pierwsze 10 znaków): ${token.substring(0, 10)}...`);
+    return token;
 }
 
 module.exports = {
