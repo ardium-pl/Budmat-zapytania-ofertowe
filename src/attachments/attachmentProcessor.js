@@ -5,7 +5,8 @@ const {processWord} = require('./fileHandler/wordHandler');
 const {processSpreadsheet} = require('./fileHandler/spreadsheetHandler');
 const {processImage} = require('./fileHandler/imageHandler');
 const {PROCESSED_DIR} = require('../../config/constants');
-const logger = require('../utils/logger');
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
 
 
 const fileProcessors = {

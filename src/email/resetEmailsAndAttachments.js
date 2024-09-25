@@ -1,7 +1,8 @@
 const imaps = require('imap-simple');
 const fs = require('fs').promises;
 const {EMAIL_ADDRESS, DATA_DIR} = require('../../config/constants');
-const logger = require('../utils/logger');
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
 
 
 async function resetEmailsAndAttachments(auth) {

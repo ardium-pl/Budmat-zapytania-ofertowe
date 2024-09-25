@@ -1,7 +1,8 @@
 const {PDFExtract} = require('pdf.js-extract');
 const {pdfOCR} = require('./ocr.js');
 const pdfExtract = new PDFExtract();
-const logger = require('../../utils/logger');
+const {createLogger} = require("../../utils/logger");
+const logger = createLogger(__filename);
 
 async function processPDF(filePath) {
     try {

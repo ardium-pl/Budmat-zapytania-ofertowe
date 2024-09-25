@@ -1,5 +1,6 @@
 const fs = require("fs");
-const logger = require("./logger");
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
 
 async function deleteFile(filePath) {
     try {

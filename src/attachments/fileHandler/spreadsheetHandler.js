@@ -1,5 +1,6 @@
 const xlsx = require('xlsx');
-const logger = require('../../utils/logger');
+const {createLogger} = require("../../utils/logger");
+const logger = createLogger(__filename);
 
 async function processSpreadsheet(filePath) {
     try {

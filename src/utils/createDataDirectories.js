@@ -1,4 +1,5 @@
-const logger = require("./logger");
+const {createLogger}  = require('../utils/logger');
+const logger = createLogger(__filename);
 const {DATA_DIR, PROCESSED_DIR, TEMP_DIR} = require("../../config/constants");
 const fs = require("fs").promises;
 

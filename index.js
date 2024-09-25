@@ -2,7 +2,8 @@ const fs = require("fs").promises;
 const {authorize} = require("./src/auth/authHandler");
 const {startImapListener} = require("./src/email/imapListener");
 const {resetEmailsAndAttachments} = require("./src/email/resetEmailsAndAttachments");
-const logger = require("./src/utils/logger");
+const {createLogger} = require("./src/utils/logger");
+const logger = createLogger(__filename);
 const {createDataDirectories} = require("./src/utils/createDataDirectories");
 
 async function main() {
