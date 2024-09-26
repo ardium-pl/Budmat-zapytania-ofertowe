@@ -108,6 +108,13 @@ async function refreshTokenIfNeeded() {
         return true;
     } catch (error) {
         logger.error('Error refreshing token:', error);
+        // If refresh fails, attempt to get a new token
+        logger.warn('Attempting to get a new token...');
+        const newAuth = await getNewToken(oAuth2Client);
+        if (newAuth) {
+            oAuth2Client = newAuth;
+            return true;
+        }
         return false;
     }
 }
@@ -155,7 +162,7 @@ function getNewToken(oAuth2Client) {
 function buildXOAuth2Token(user, accessToken) {
     if (typeof user !== 'string' || typeof accessToken !== 'string') {
         logger.error(`Invalid input for buildXOAuth2Token. User: ${typeof user}, AccessToken: ${typeof accessToken}`);
-        return ''; // Return empty string in case of invalid input
+        return null; // Return null instead of empty string
     }
     const authString = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`;
     const token = Buffer.from(authString).toString('base64');

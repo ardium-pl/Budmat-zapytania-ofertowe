@@ -6,6 +6,8 @@ const {saveToken} = require('../auth/authHandler.js');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
+const RECONNECT_DELAY = 60000; // 1 minute
+
 async function startImapListener(auth) {
     const getAccessToken = async () => {
         await refreshTokenIfNeeded();
@@ -13,55 +15,66 @@ async function startImapListener(auth) {
     };
 
     const startConnection = async () => {
-        const accessToken = await getAccessToken();
-
-        if (!accessToken) {
-            logger.error('Failed to obtain access token. Aborting connection attempt.');
-            return;
-        }
-
-        const xoauth2Token = buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
-        logger.info(`Generated XOAUTH2 token (first 10 characters): ${xoauth2Token.substring(0, 10)}...`);
-
-        const config = {
-            imap: {
-                user: EMAIL_ADDRESS,
-                xoauth2: xoauth2Token,
-                host: 'imap.gmail.com',
-                port: 993,
-                tls: true,
-                tlsOptions: {rejectUnauthorized: false},
-                authTimeout: 30000,
-            },
-            onmail: async () => {
-                logger.info('New email received. Processing...');
-                try {
-                    const connection = await imaps.connect(config);
-                    await processNewEmail(connection);
-                    await connection.end();
-                } catch (error) {
-                    logger.error('Error processing new email:', error);
-                }
-            },
-        };
-
         try {
+            const accessToken = await getAccessToken();
+
+            if (!accessToken) {
+                logger.error('Failed to obtain access token. Aborting connection attempt.');
+                setTimeout(() => startConnection(), RECONNECT_DELAY);
+                return;
+            }
+
+            const xoauth2Token = buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
+            logger.info(`Generated XOAUTH2 token (first 10 characters): ${xoauth2Token.substring(0, 10)}...`);
+
+            const config = {
+                imap: {
+                    user: EMAIL_ADDRESS,
+                    xoauth2: xoauth2Token,
+                    host: 'imap.gmail.com',
+                    port: 993,
+                    tls: true,
+                    tlsOptions: {rejectUnauthorized: false},
+                    authTimeout: 30000,
+                    keepalive: {
+                        interval: 10000,
+                        idleInterval: 300000,
+                        forceNoop: true
+                    }
+                },
+                onmail: async () => {
+                    logger.info('New email received. Processing...');
+                    try {
+                        await processNewEmail(connection);
+                    } catch (error) {
+                        logger.error('Error processing new email:', error);
+                    }
+                },
+            };
+
             logger.info(`Attempting to connect to IMAP using address: ${EMAIL_ADDRESS}`);
             const connection = await imaps.connect(config);
             logger.info('Connected to IMAP server');
+
+            connection.on('error', (err) => {
+                logger.error('IMAP connection error:', err);
+                connection.end();
+                setTimeout(() => startConnection(), RECONNECT_DELAY);
+            });
+
+            connection.on('close', () => {
+                logger.warn('IMAP connection closed unexpectedly');
+                setTimeout(() => startConnection(), RECONNECT_DELAY);
+            });
 
             await processNewEmails(connection);
 
             logger.info('Listening for new emails...');
             connection.imap.on('mail', config.onmail);
 
-            connection.imap.on('error', (err) => {
-                logger.error('IMAP connection error:', err);
-                setTimeout(() => startImapListener(auth), 60000);
-            });
         } catch (err) {
             logger.error('Error during IMAP connection attempt:', err);
-            setTimeout(() => startImapListener(auth), 60000);
+            setTimeout(() => startConnection(), RECONNECT_DELAY);
         }
     };
 
