@@ -22,7 +22,7 @@ async function ensureDirectoryExists(dirPath) {
         logger.info(`Directory ${dirPath} has been created or already exists`);
     } catch (error) {
         logger.error(`Error creating directory ${dirPath}:`, error);
-        throw error;
+
     }
 }
 
@@ -33,7 +33,7 @@ async function saveToken(tokens) {
         logger.info(`Token saved to file: ${TOKEN_PATH}`);
     } catch (error) {
         logger.error(`Error saving token:`, error);
-        throw error;
+
     }
 }
 
