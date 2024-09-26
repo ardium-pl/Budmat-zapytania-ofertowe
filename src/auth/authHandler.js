@@ -261,6 +261,7 @@ function buildXOAuth2Token(user, accessToken) {
 
 module.exports = {
     authorize,
+    saveToken,
     getNewToken,
     buildXOAuth2Token,
     refreshTokenIfNeeded

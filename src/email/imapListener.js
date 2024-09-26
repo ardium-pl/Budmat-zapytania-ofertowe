@@ -2,6 +2,7 @@ const imaps = require('imap-simple');
 const { processNewEmails, processEmail } = require('./emailProcessor');
 const { buildXOAuth2Token, refreshTokenIfNeeded } = require('../auth/authHandler');
 const { EMAIL_ADDRESS } = require('../../config/constants');
+const {saveToken} = require('../auth/authHandler.js')
 const {createLogger}  = require('../utils/logger');
 const logger = createLogger(__filename);
 
