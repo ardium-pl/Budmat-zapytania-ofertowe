@@ -55,7 +55,7 @@ async function processOfferData(emailDir) {
            - Użyj tablicy dwuelementowej [min, max] jeśli podano zakres np. min. 280 - max 300.
            - Użyj pojedynczej liczby, jeśli podano tylko jedną wartość np. 1240.
         5. Upewnij się, że wszystkie dane numeryczne są zapisane jako liczby, nie stringi.
-        6. Dostawca powinien być określony po słowie 'Mill', ale nie dopisuj tego słowa do nazwy dostawcy. Jeżeli nie możesz łatwo znaleźć dostawcy, spróbuj znaleźć go z domenie mailowej.
+        6. Jeżeli nie możesz łatwo znaleźć dostawcy, spróbuj znaleźć go z domenie mailowej.
         7. Dla pól produktów:
            - nameOfProduct: nazwa produktu (np. "Blacha stalowa")
            - material: rodzaj materiału (ta informacja często występuje przy kluczu 'Commodity' np. "stal zimnowalcowana")

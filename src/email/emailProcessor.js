@@ -50,7 +50,10 @@ async function processEmail(connection, message) {
         await createMetadataFile(emailDir, emailContent, attachmentResults);
         logger.info(`Created metadata for email ${emailId}`);
 
-        // Create a flag file to indicate email processing is complete
+        // Wait for all attachments to be processed
+        await Promise.all(attachmentResults.map(result => result.processPromise));
+
+        // Create a flag file to indicate initial email processing is complete
         await fs.writeFile(path.join(emailDir, 'processing_complete'), '');
         logger.info(`Created processing complete flag for email ${emailId}`);
 
@@ -59,10 +62,9 @@ async function processEmail(connection, message) {
         await combineEmailData(emailDir);
         logger.info(`Combined email data for email ${emailId}`);
 
-        // Create a flag file to indicate email processing is complete
+        // Create a flag file to indicate all data is present and combined
         await fs.writeFile(path.join(emailDir, 'all_present'), '');
-        logger.info(`Created processing complete flag for email ${emailId}`);
-
+        logger.info(`Created all present flag for email ${emailId}`);
 
         await markMessageAsSeen(connection.imap, uid);
         logger.info(`Marked message ${uid} as seen`);
@@ -114,6 +116,7 @@ if (!isMainThread) {
 
     async function processEmailWorker() {
         try {
+            await waitForFile(path.join(emailDir, 'processing_complete'));
             await waitForFile(path.join(emailDir, 'all_present'));
             logger.info(`Processing offer data for email ${emailId}`);
             await processOfferData(emailDir);
@@ -233,15 +236,17 @@ async function processEmailAttachments(connection, message, emailDir) {
                     const filePath = path.join(emailDir, filename);
                     await fs.writeFile(filePath, partData);
 
-                    const processedFilePath = await processAttachment(filePath, extension);
-                    attachmentResults.push({
-                        filename,
-                        originalPath: filePath,
-                        processedPath: processedFilePath
+                    const processPromise = processAttachment(filePath, extension).then(processedFilePath => {
+                        logger.info(`Processed attachment: ${filename}`);
+                        return {filename, originalPath: filePath, processedPath: processedFilePath};
+                    }).catch(err => {
+                        logger.error(`Error processing attachment ${filename}:`, err);
+                        return {filename, originalPath: filePath, error: err.message};
                     });
 
+                    attachmentResults.push({filename, processPromise});
                 } catch (err) {
-                    logger.error('Error processing attachment:', filename, err);
+                    logger.error('Error saving attachment:', filename, err);
                 }
             } else {
                 logger.warn(`Skipped disallowed attachment: ${filename}`);

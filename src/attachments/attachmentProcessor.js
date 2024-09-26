@@ -23,6 +23,7 @@ const fileProcessors = {
 
 async function processAttachment(filePath, extension) {
     const fileName = path.basename(filePath);
+    const emailDir = path.dirname(filePath);
     let processedContent = '';
 
     const processor = fileProcessors[extension.toLowerCase()];
@@ -35,7 +36,7 @@ async function processAttachment(filePath, extension) {
     try {
         const processedContent = await processor(filePath);
 
-        const processedFilePath = path.join(PROCESSED_DIR, `${path.parse(fileName).name}_processed.json`);
+        const processedFilePath = path.join(emailDir, `${path.parse(fileName).name}_processed.json`);
         await fs.writeFile(processedFilePath, processedContent);
 
         logger.info(`Processed ${fileName} and saved results to ${processedFilePath}`);
