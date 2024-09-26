@@ -1,16 +1,16 @@
 const imaps = require('imap-simple');
 const fs = require('fs').promises;
 const {EMAIL_ADDRESS, DATA_DIR} = require('../../config/constants');
-const {createLogger}  = require('../utils/logger');
+const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
 
 async function resetEmailsAndAttachments(auth) {
     try {
-        // Oznacz wszystkie wiadomości jako nieprzeczytane
+        // Mark all messages as unread
         await markAllAsUnseen(auth);
 
-        // Usuń foldery z załącznikami
+        // Remove directories with attachments
         await removeDirectory(DATA_DIR);
 
 
@@ -84,11 +84,16 @@ async function markAllAsUnseen(auth) {
         });
     } catch (error) {
         logger.error('Error in markAllAsUnseen:', error);
-        // throw error;
+        // Instead of throwing, we'll return to prevent unhandled promise rejection
+        return Promise.reject(error);
     }
 }
 
 function buildXOAuth2Token(user, accessToken) {
+    if (typeof user !== 'string' || typeof accessToken !== 'string') {
+        logger.error(`Invalid input for buildXOAuth2Token. User: ${typeof user}, AccessToken: ${typeof accessToken}`);
+        return ''; // Return empty string in case of invalid input
+    }
     const authString = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`;
     return Buffer.from(authString).toString('base64');
 }

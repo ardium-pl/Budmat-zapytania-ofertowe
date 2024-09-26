@@ -7,7 +7,7 @@ async function createDataDirectories() {
     const directories = [DATA_DIR, PROCESSED_DIR, TEMP_DIR];
     try {
         for (const dir of directories) {
-            await fs.mkdir(dir, { recursive: true });
+            await fs.mkdir(dir, {recursive: true});
         }
         logger.info("Data directories created or verified.");
     } catch (err) {

@@ -14,7 +14,7 @@ const VISION_AUTH = {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
         private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Handling the private key newline issue
     },
-    fallback: true,  // Wymuszenie użycia REST API zamiast gRPC
+    fallback: true,  // Force use of REST API instead of gRPC
 };
 
 async function pdfOCR(pdfFilePath) {
@@ -69,7 +69,7 @@ async function pdfOCR(pdfFilePath) {
         return concatenatedResults;
     } catch (err) {
         logger.error(`Error processing ${pdfFilePath}:`, err);
-        throw err;
+        return ""; // Return an empty string instead of undefined to prevent container shutdown
     }
 }
 
@@ -91,7 +91,7 @@ async function fileOcr(imageFilePath) {
         logger.info(` 💚 Successfully processed image ${imageFilePath}`);
     } catch (err) {
         logger.error(`Error during Google Vision OCR processing: ${err.message}`);
-        throw err;
+        // Instead of throwing an error, we'll just log it and continue
     }
 
     return results;

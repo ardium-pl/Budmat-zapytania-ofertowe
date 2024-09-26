@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const {PROCESSED_DIR} = require('../../config/constants');
-const {createLogger}  = require('../utils/logger');
+const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
 
@@ -70,7 +70,6 @@ async function combineEmailData() {
                     // Save combined data to 'all_{emailId}.json'
                     const emailId = folder.name.replace('email_', '');
                     const allJsonPath = path.join(emailDir, `all_${emailId}.json`);
-                    // const allJsonPath = path.join(emailDir, `all_${path.basename(emailFolderPath)}.json`);
                     await fs.writeFile(allJsonPath, JSON.stringify(combinedData, null, 2), 'utf8');
 
                     logger.info(`Combined data saved to ${allJsonPath}`);
@@ -86,5 +85,5 @@ async function combineEmailData() {
 }
 
 module.exports = {
-        combineEmailData
-    };
+    combineEmailData
+};

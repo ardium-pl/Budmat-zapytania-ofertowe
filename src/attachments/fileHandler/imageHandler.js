@@ -20,8 +20,8 @@ async function processImage(filePath) {
         logger.info(`Successfully processed image: ${filePath}`);
         return JSON.stringify(result, null, 2);
     } catch (error) {
+        // Log the error instead of throwing it to prevent container shutdown
         logger.error("Error processing image:", error);
-        // throw error;
     }
 }
 

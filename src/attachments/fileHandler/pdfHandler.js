@@ -29,7 +29,8 @@ async function processPDF(filePath) {
         return JSON.stringify(result, null, 2);
     } catch (error) {
         logger.error('Error processing PDF:', error);
-        // throw error;
+        // Return an error object instead of throwing an error
+        return JSON.stringify({error: 'Failed to process PDF'}, null, 2);
     }
 }
 
@@ -44,7 +45,7 @@ function extractTables(content) {
     content.forEach(item => {
         if (lastY === null || Math.abs(item.y - lastY) > 5) {
             if (inTable) {
-                if (currentTable.length > 1) {  // Uznajemy za tabelę, jeśli ma więcej niż jeden wiersz
+                if (currentTable.length > 1) {  // Consider it a table if it has more than one row
                     tables.push(currentTable);
                 }
                 currentTable = [];
@@ -71,7 +72,7 @@ function extractTables(content) {
 
 function isLikelyTableRow(content, item) {
     const sameYItems = content.filter(i => Math.abs(i.y - item.y) < 2);
-    return sameYItems.length >= 3;  // Uznajemy za wiersz tabeli, jeśli ma co najmniej 3 elementy w tej samej linii
+    return sameYItems.length >= 3;  // Consider it a table row if it has at least 3 elements in the same line
 }
 
 function formatTable(table) {

@@ -5,7 +5,7 @@ const {processWord} = require('./fileHandler/wordHandler');
 const {processSpreadsheet} = require('./fileHandler/spreadsheetHandler');
 const {processImage} = require('./fileHandler/imageHandler');
 const {PROCESSED_DIR} = require('../../config/constants');
-const {createLogger}  = require('../utils/logger');
+const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
 
@@ -32,13 +32,18 @@ async function processAttachment(filePath, extension) {
         return null;
     }
 
-    processedContent = await processor(filePath);
+    try {
+        const processedContent = await processor(filePath);
 
-    const processedFilePath = path.join(path.dirname(filePath), `${path.parse(fileName).name}_processed.json`);
-    await fs.writeFile(processedFilePath, processedContent);
+        const processedFilePath = path.join(PROCESSED_DIR, `${path.parse(fileName).name}_processed.json`);
+        await fs.writeFile(processedFilePath, processedContent);
 
-    logger.info(`Processed ${fileName} and saved results to ${processedFilePath}`);
-    return processedFilePath;
+        logger.info(`Processed ${fileName} and saved results to ${processedFilePath}`);
+        return processedFilePath;
+    } catch (error) {
+        logger.error(`Error processing ${fileName}:`, error);
+        return JSON.stringify({error: `Failed to process ${fileName}: ${error.message}`}, null, 2);
+    }
 }
 
 module.exports = {

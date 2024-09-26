@@ -1,8 +1,8 @@
 const {Poppler} = require("node-poppler");
 const path = require("path");
-const fs = require("fs");
+const fs = require("fs").promises;
 const {replacePolishCharacters} = require("./fileUtils.js");
-const {createLogger}  = require('../utils/logger');
+const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
 async function convertPdfToImages(pdfFilePath, saveFolder) {
@@ -15,11 +15,9 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
     const outputFilePath = path.join(saveFolder, `${outputPrefix}`);
     const pdfInfo = {};
 
-    if (!fs.existsSync(saveFolder)) {
-        fs.mkdirSync(saveFolder, {recursive: true});
-    }
-
     try {
+        await fs.mkdir(saveFolder, {recursive: true});
+
         logger.info(`Getting PDF info for: ${pdfFilePath}`);
         const ret = await poppler.pdfInfo(pdfFilePath);
 
@@ -45,12 +43,16 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
             const imagePathWithoutLeadingZero = `${outputFilePath}-${i}.png`;
             const imagePathWithLeadingZero = `${outputFilePath}-${i.toString().padStart(2, '0')}.png`;
 
-            if (fs.existsSync(imagePathWithoutLeadingZero)) {
+            try {
+                await fs.access(imagePathWithoutLeadingZero);
                 imagePaths.push(imagePathWithoutLeadingZero);
-            } else if (fs.existsSync(imagePathWithLeadingZero)) {
-                imagePaths.push(imagePathWithLeadingZero);
-            } else {
-                logger.warn(`Expected image file not found: ${imagePathWithoutLeadingZero} or ${imagePathWithLeadingZero}`);
+            } catch {
+                try {
+                    await fs.access(imagePathWithLeadingZero);
+                    imagePaths.push(imagePathWithLeadingZero);
+                } catch {
+                    logger.warn(`Expected image file not found: ${imagePathWithoutLeadingZero} or ${imagePathWithLeadingZero}`);
+                }
             }
         }
 
@@ -58,7 +60,7 @@ async function convertPdfToImages(pdfFilePath, saveFolder) {
         return imagePaths;
     } catch (err) {
         logger.error("Error converting PDF to image:", err);
-        throw err;
+        return []; // Return an empty array instead of throwing an error
     }
 }
 
