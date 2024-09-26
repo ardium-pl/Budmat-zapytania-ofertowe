@@ -1,8 +1,16 @@
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, '../data');
+// Bazowy katalog w wolumenie Railway
+const BASE_VOLUME_DIR = path.join('/app/processed_attachments');
+
+// Definiowanie folderów
+const DATA_DIR = path.join(BASE_VOLUME_DIR, 'data');
 const PROCESSED_DIR = path.join(DATA_DIR, 'processed');
 const TEMP_DIR = path.join(DATA_DIR, 'temp');
+
+// const DATA_DIR = path.join(__dirname, '../data');
+// const PROCESSED_DIR = path.join(DATA_DIR, 'processed');
+// const TEMP_DIR = path.join(DATA_DIR, 'temp');
 const EMAIL_ADDRESS = process.env.EMAIL_ADDRESS || 'ardiumvpn@gmail.com';
 const ALLOWED_EXTENSIONS = [
     '.pdf',
