@@ -9,6 +9,24 @@ dotenv.config();
 const GOOGLE_SHEETS_ACCOUNT = JSON.parse(process.env.GOOGLE_SHEETS_ACCOUNT);
 const { SPREADSHEET_ID, TEMPLATE_SHEET_ID } = process.env;
 
+async function createUniqueSheetName(sheets, baseName) {
+    let sheetName = baseName;
+    let counter = 1;
+    const existingSheets = await sheets.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+        fields: 'sheets.properties.title'
+    });
+
+    const existingNames = existingSheets.data.sheets.map(sheet => sheet.properties.title);
+
+    while (existingNames.includes(sheetName)) {
+        sheetName = `${baseName} - Copy ${counter}`;
+        counter++;
+    }
+
+    return sheetName;
+}
+
 async function createSheetAndInsertData(emailDir) {
     const emailId = path.basename(emailDir).replace('email_', '');
     const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
@@ -30,7 +48,9 @@ async function createSheetAndInsertData(emailDir) {
 
         const sheets = google.sheets({ version: 'v4', auth });
 
-        const sheetName = processedData.supplier?.name || 'Nowy arkusz';
+        const baseSheetName = processedData.supplier?.name || 'Nowy arkusz';
+        const sheetName = await createUniqueSheetName(sheets, baseSheetName);
+
         const duplicateRequest = {
             spreadsheetId: SPREADSHEET_ID,
             resource: {
@@ -142,7 +162,7 @@ async function createSheetAndInsertData(emailDir) {
             resource: { requests }
         });
 
-        logger.debug(`Arkusz utworzony i dane wstawione pomyślnie.`);
+        logger.debug(`Arkusz "${sheetName}" utworzony i dane wstawione pomyślnie.`);
     } catch (error) {
         logger.error(`Błąd podczas tworzenia arkusza i wstawiania danych: ${error.message}`);
         logger.debug(`Stos błędu: ${error.stack}`);
