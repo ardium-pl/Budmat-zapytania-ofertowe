@@ -27,18 +27,50 @@ async function createUniqueSheetName(sheets, baseName) {
     return sheetName;
 }
 
+function validateProcessedData(data) {
+    const requiredFields = ['offerNumber', 'offerDate', 'customer', 'supplier', 'offerDetails'];
+    const missingFields = requiredFields.filter(field => !data[field]);
+
+    if (missingFields.length > 0) {
+        logger.warn(`Brakujące pola w danych: ${missingFields.join(', ')}`);
+    }
+
+    if (!data.products || !Array.isArray(data.products)) {
+        logger.warn('Brak tablicy produktów lub nieprawidłowy format');
+        data.products = [];
+    }
+
+    return {
+        isValid: missingFields.length === 0 && data.products.length > 0,
+        missingFields,
+        productsCount: data.products.length
+    };
+}
+
 async function createSheetAndInsertData(emailDir) {
     const emailId = path.basename(emailDir).replace('email_', '');
     const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
 
     try {
+        logger.info(`Próba odczytu pliku: ${processedDataPath}`);
         const rawData = await fs.readFile(processedDataPath, 'utf8');
-        const processedData = JSON.parse(rawData);
+        logger.debug(`Zawartość surowych danych: ${rawData}`);
 
-        logger.debug(`Przetworzone dane: ${JSON.stringify(processedData, null, 2)}`);
+        let processedData;
+        try {
+            processedData = JSON.parse(rawData);
+        } catch (parseError) {
+            logger.error(`Błąd parsowania JSON: ${parseError.message}`);
+            logger.debug(`Problematyczne dane: ${rawData}`);
+            throw new Error('Nieprawidłowy format JSON');
+        }
 
-        if (!processedData || !processedData.products || processedData.products.length === 0) {
-            throw new Error('Brak danych produktów w przetworzonych danych');
+        logger.debug(`Struktura przetworzonych danych: ${JSON.stringify(Object.keys(processedData), null, 2)}`);
+
+        const validationResult = validateProcessedData(processedData);
+        logger.info(`Wynik walidacji: ${JSON.stringify(validationResult)}`);
+        if (!validationResult.isValid) {
+            logger.warn('Dane nie przeszły pełnej walidacji, ale kontynuuję z dostępnymi informacjami');
         }
 
         const auth = new google.auth.GoogleAuth({
@@ -84,29 +116,20 @@ async function createSheetAndInsertData(emailDir) {
             [],
             ['Products'],
             ['Name of Product', 'Quantity', 'Net Price', 'Gross Price'],
-            [
-                processedData.products[0]?.nameOfProduct || 'N/A',
-                processedData.offerDetails?.totalQuantity || 'N/A',
-                '',
-                ''
-            ],
-            [],
-            ['Material', 'Grubość', 'Szerokość', 'Gatunek', 'Powłoka metaliczna', 'Powłoka lakiernicza', 'Producent', 'Cena netto', 'Cena brutto']
         ];
 
-        processedData.products.forEach(product => {
-            values.push([
-                product.material || 'N/A',
-                product.thickness || 'N/A',
-                product.width || 'N/A',
-                product.grade || 'N/A',
-                product.surface || 'N/A',
-                'N/A',  // Powłoka lakiernicza - brak w JSON
-                'N/A',  // Producent - brak w JSON
-                product.price?.net || 'N/A',
-                product.price?.gross || 'N/A'
-            ]);
-        });
+        if (processedData.products && processedData.products.length > 0) {
+            processedData.products.forEach(product => {
+                values.push([
+                    product.nameOfProduct || 'N/A',
+                    product.quantity || 'N/A',
+                    product.price?.net || 'N/A',
+                    product.price?.gross || 'N/A'
+                ]);
+            });
+        } else {
+            values.push(['Brak danych o produktach', '', '', '']);
+        }
 
         const resource = { values };
 
@@ -141,8 +164,8 @@ async function createSheetAndInsertData(emailDir) {
                 repeatCell: {
                     range: {
                         sheetId: newSheetId,
-                        startRowIndex: 7,
-                        endRowIndex: 8,
+                        startRowIndex: 4,
+                        endRowIndex: 5,
                         startColumnIndex: 0,
                         endColumnIndex: 9
                     },
