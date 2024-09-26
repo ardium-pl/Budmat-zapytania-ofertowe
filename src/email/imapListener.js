@@ -14,7 +14,6 @@ async function startImapListener(auth) {
 
     const startConnection = async () => {
         const accessToken = await getAccessToken();
-        logger.info("Nowy accessToken: " + accessToken);
 
         if (!accessToken) {
             logger.error('Nie udało się uzyskać tokenu dostępu. Przerywam próbę połączenia.');
