@@ -7,32 +7,25 @@ const logger = createLogger(__filename);
 
 async function startImapListener(auth) {
     const getAccessToken = async () => {
-        const refreshSuccessful = await refreshTokenIfNeeded();
-        if (refreshSuccessful) {
-            logger.info('Token sprawdzony i odświeżony, jeśli było to konieczne');
-            return auth.credentials.access_token;
-        } else {
-            logger.error('Nie udało się odświeżyć tokenu');
-            return null;
-        }
+        await refreshTokenIfNeeded();
+        return auth.credentials.access_token;
     };
+
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+        logger.error('Nie udało się uzyskać tokenu dostępu. Przerywam próbę połączenia.');
+        return;
+    }
+
+    const xoauth2Token = buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
+    logger.info(`Wygenerowany token XOAUTH2 (pierwsze 10 znaków): ${xoauth2Token.substring(0, 10)}...`);
+    logger.info(`Typ tokenu XOAUTH2: ${typeof xoauth2Token}`);
+    logger.info(`Długość tokenu XOAUTH2: ${xoauth2Token.length}`);
 
     const config = {
         imap: {
             user: EMAIL_ADDRESS,
-            xoauth2: async () => {
-                const accessToken = await getAccessToken();
-                if (!accessToken) {
-                    logger.error('Brak ważnego tokenu dostępu');
-                    return '';
-                }
-                logger.info(`Typ access_token przed generowaniem XOAUTH2: ${typeof accessToken}`);
-                logger.info(`Długość access_token przed generowaniem XOAUTH2: ${accessToken.length}`);
-                const token = buildXOAuth2Token(EMAIL_ADDRESS, accessToken);
-                logger.info(`Typ wygenerowanego tokenu XOAUTH2: ${typeof token}`);
-                logger.info(`Długość wygenerowanego tokenu XOAUTH2: ${token.length}`);
-                return token;
-            },
+            xoauth2: xoauth2Token,
             host: 'imap.gmail.com',
             port: 993,
             tls: true,
@@ -51,31 +44,25 @@ async function startImapListener(auth) {
         },
     };
 
-    async function attemptConnection() {
-        try {
-            logger.info(`Próba połączenia z IMAP używając adresu: ${EMAIL_ADDRESS}`);
-            const connection = await imaps.connect(config);
-            logger.info('Połączono z serwerem IMAP');
+    try {
+        logger.info(`Próba połączenia z IMAP używając adresu: ${EMAIL_ADDRESS}`);
+        const connection = await imaps.connect(config);
+        logger.info('Połączono z serwerem IMAP');
 
-            // Początkowe skanowanie nieprzeczytanych wiadomości
-            await processNewEmails(connection);
+        await processNewEmails(connection);
 
-            logger.info('Nasłuchiwanie nowych emaili...');
+        logger.info('Nasłuchiwanie nowych emaili...');
 
-            // Utrzymuj połączenie otwarte, aby nasłuchiwać nowe emaile
-            connection.imap.on('mail', config.onmail);
+        connection.imap.on('mail', config.onmail);
 
-            connection.imap.on('error', (err) => {
-                logger.error('Błąd połączenia IMAP:', err);
-                setTimeout(attemptConnection, 60000);
-            });
-        } catch (err) {
-            logger.error('Błąd podczas próby połączenia IMAP:', err);
-            setTimeout(attemptConnection, 60000);
-        }
+        connection.imap.on('error', (err) => {
+            logger.error('Błąd połączenia IMAP:', err);
+            setTimeout(() => startImapListener(auth), 60000);
+        });
+    } catch (err) {
+        logger.error('Błąd podczas próby połączenia IMAP:', err);
+        setTimeout(() => startImapListener(auth), 60000);
     }
-
-    attemptConnection();
 }
 
 async function processNewEmail(connection) {
