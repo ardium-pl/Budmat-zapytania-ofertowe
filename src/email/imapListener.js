@@ -65,14 +65,13 @@ async function startImapListener(auth) {
         }
     };
 
-    // Start the connection for the first time
     await startConnection();
 
     // Update the IMAP connection when tokens are refreshed
     auth.on('tokens', async (tokens) => {
         logger.info('Otrzymano nowe tokeny');
-        await saveToken(tokens); // Save the refreshed token
-        await startConnection(); // Restart the connection with the new token
+        await saveToken(tokens);
+        await startConnection();
     });
 }
 
