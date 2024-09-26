@@ -6,6 +6,7 @@ const {decodeFilename, isAllowedFileType, getFileExtension} = require('../utils/
 const {PROCESSED_DIR} = require('../../config/constants');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
+const util = require('util');
 const {simpleParser} = require('mailparser');
 const {combineEmailData} = require("../utils/combineEmailData");
 const {processOfferData} = require("../zod-json/emailDataProcessor");

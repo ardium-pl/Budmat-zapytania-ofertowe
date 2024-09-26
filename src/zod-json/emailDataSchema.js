@@ -23,7 +23,7 @@ const EmailDataSchema = z.object({
 
 // Schema for individual product details
 const ProductSchema = z.object({
-    nameOfProduct: z.string().optional(),
+    // nameOfProduct: z.string().optional(),
     itemNumber: z.string().optional(),
     material: z.string().optional(),
     grade: z.string().optional(),

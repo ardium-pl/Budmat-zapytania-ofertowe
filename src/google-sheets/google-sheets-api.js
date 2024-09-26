@@ -10,7 +10,7 @@ const GOOGLE_SHEETS_ACCOUNT = JSON.parse(process.env.GOOGLE_SHEETS_ACCOUNT);
 const {SPREADSHEET_ID, TEMPLATE_SHEET_ID} = process.env;
 
 async function createUniqueSheetName(sheets, baseName) {
-    let sheetName = baseName;
+    let sheetName = baseName || "New Sheet";
     let counter = 1;
     const existingSheets = await sheets.spreadsheets.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -22,7 +22,7 @@ async function createUniqueSheetName(sheets, baseName) {
     );
 
     while (existingNames.includes(sheetName)) {
-        sheetName = `${baseName} - Copy ${counter}`;
+        sheetName = `${baseName || "New Sheet"} - Copy ${counter}`;
         counter++;
     }
 
@@ -40,19 +40,7 @@ async function createSheetAndInsertData(emailDir) {
         const rawData = await fs.readFile(processedDataPath, "utf8");
         const processedData = JSON.parse(rawData);
 
-        // Uncomment the following line to log the processed data
-        // logger.debug(
-        //     `Przetworzone dane: ${JSON.stringify(processedData, null, 2)}`
-        // );
-
-        if (
-            !processedData ||
-            !processedData.products ||
-            processedData.products.length === 0
-        ) {
-            logger.error("No product data in processed data");
-            return; // Return early instead of throwing an error
-        }
+        logger.debug(`Processing data for email ${emailId}`);
 
         const auth = new google.auth.GoogleAuth({
             credentials: GOOGLE_SHEETS_ACCOUNT,
@@ -61,7 +49,7 @@ async function createSheetAndInsertData(emailDir) {
 
         const sheets = google.sheets({version: "v4", auth});
 
-        const baseSheetName = processedData.supplier?.name || "New Sheet";
+        const baseSheetName = processedData.supplier?.name || "New Offer";
         const sheetName = await createUniqueSheetName(sheets, baseSheetName);
 
         const duplicateRequest = {
@@ -83,11 +71,11 @@ async function createSheetAndInsertData(emailDir) {
 
         const values = [
             [
-                processedData.supplier.name || "N/A",
-                processedData.offerDetails.currency || "N/A",
-                processedData.offerDetails.deliveryTerms || "N/A",
-                processedData.offerDetails.deliveryDate || "N/A",
-                processedData.offerDetails.paymentTerms || "N/A",
+                processedData.supplier?.name || "N/A",
+                processedData.offerDetails?.currency || "N/A",
+                processedData.offerDetails?.deliveryTerms || "N/A",
+                processedData.offerDetails?.deliveryDate || "N/A",
+                processedData.offerDetails?.paymentTerms || "N/A",
             ],
             [],
             [],
@@ -96,18 +84,22 @@ async function createSheetAndInsertData(emailDir) {
             [],
         ];
 
-        processedData.products.forEach((product) => {
-            values.push([
-                product.material || "N/A",
-                product.thickness || "N/A",
-                product.width || "N/A",
-                product.grade || "N/A",
-                product.surface || "N/A",
-                "N/A", // Paint coating - not in JSON
-                "N/A", // Manufacturer - not in JSON
-                product.price || "N/A",
-            ]);
-        });
+        if (processedData.products && Array.isArray(processedData.products)) {
+            processedData.products.forEach((product) => {
+                values.push([
+                    product.material || "N/A",
+                    product.thickness || "N/A",
+                    product.width || "N/A",
+                    product.grade || "N/A",
+                    product.surface || "N/A",
+                    "N/A", // Paint coating - not in JSON
+                    "N/A", // Manufacturer - not in JSON
+                    product.price || "N/A",
+                ]);
+            });
+        } else {
+            logger.warn(`No product data found for email ${emailId}`);
+        }
 
         const resource = {values};
 
@@ -118,10 +110,10 @@ async function createSheetAndInsertData(emailDir) {
             resource,
         });
 
-        logger.debug(`Sheet "${sheetName}" created and data inserted successfully.`);
+        logger.info(`Sheet "${sheetName}" created and data inserted successfully for email ${emailId}.`);
     } catch (error) {
         logger.error(
-            `Error creating sheet and inserting data: ${error.message}`
+            `Error creating sheet and inserting data for email ${emailId}: ${error.message}`
         );
         logger.debug(`Error stack: ${error.stack}`);
     }

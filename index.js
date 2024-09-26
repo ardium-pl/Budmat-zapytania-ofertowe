@@ -28,6 +28,7 @@ async function main() {
             logger.info("Resetting emails and removing attachment folders...");
             await resetEmailsAndAttachments(oAuth2Client);
             logger.info("Reset completed.");
+            process.exit(0); // Exit successfully after reset
         } else {
             // Normalny tryb pracy - nasłuchiwanie i przetwarzanie nowych e-maili
             await startImapListener(oAuth2Client);

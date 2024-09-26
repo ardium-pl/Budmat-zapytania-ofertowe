@@ -6,17 +6,26 @@ const logger = createLogger(__filename);
 
 
 async function resetEmailsAndAttachments(auth) {
+    let connection = null;
     try {
         // Mark all messages as unread
-        await markAllAsUnseen(auth);
+        connection = await markAllAsUnseen(auth);
 
         // Remove directories with attachments
         await removeDirectory(DATA_DIR);
 
-
         logger.info('Reset completed successfully.');
     } catch (error) {
         logger.error('Error during reset:', error);
+    } finally {
+        if (connection) {
+            try {
+                await connection.end();
+                logger.info('IMAP connection closed.');
+            } catch (err) {
+                logger.error('Error closing IMAP connection:', err);
+            }
+        }
     }
 }
 
@@ -42,50 +51,33 @@ async function markAllAsUnseen(auth) {
         await connection.openBox('INBOX');
         logger.info('Opened INBOX');
 
-        return new Promise((resolve, reject) => {
-            connection.imap.search(['ALL'], (err, results) => {
-                if (err) {
-                    logger.error('Error searching messages:', err);
-                    reject(err);
-                    return;
-                }
+        const results = await connection.search(['ALL'], {bodies: ['HEADER']});
+        logger.info(`Found ${results.length} messages`);
 
-                logger.info(`Found ${results.length} messages`);
+        if (results.length === 0) {
+            logger.info('No messages to mark as unseen');
+            return connection;
+        }
 
-                if (results.length === 0) {
-                    logger.info('No messages to mark as unseen');
-                    resolve();
-                    return;
-                }
-
-                const f = connection.imap.fetch(results, {bodies: ['HEADER']});
-                f.on('message', (msg) => {
-                    msg.on('attributes', (attrs) => {
-                        const {uid} = attrs;
-                        connection.imap.delFlags(uid, ['\\Seen'], (err) => {
-                            if (err) {
-                                logger.error(`Error marking message ${uid} as unseen:`, err);
-                            } else {
-                                logger.info(`Marked message ${uid} as unseen`);
-                            }
-                        });
-                    });
-                });
-                f.once('error', (err) => {
-                    logger.error('Fetch error:', err);
-                    reject(err);
-                });
-                f.once('end', () => {
-                    logger.info('All messages processed');
-                    connection.imap.end();
-                    resolve();
+        for (const result of results) {
+            await new Promise((resolve, reject) => {
+                connection.imap.delFlags(result.attributes.uid, ['\\Seen'], (err) => {
+                    if (err) {
+                        logger.error(`Error marking message ${result.attributes.uid} as unseen:`, err);
+                        reject(err);
+                    } else {
+                        logger.info(`Marked message ${result.attributes.uid} as unseen`);
+                        resolve();
+                    }
                 });
             });
-        });
+        }
+
+        logger.info('All messages processed');
+        return connection;
     } catch (error) {
         logger.error('Error in markAllAsUnseen:', error);
-        // Instead of throwing, we'll return to prevent unhandled promise rejection
-        return Promise.reject(error);
+        throw error;
     }
 }
 
