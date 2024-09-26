@@ -7,14 +7,13 @@ const {PROCESSED_DIR} = require('../../config/constants');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 const {simpleParser} = require('mailparser');
-const util = require('util');
 const {combineEmailData} = require("../utils/combineEmailData");
 const {processOfferData} = require("../zod-json/emailDataProcessor");
 const {z} = require("zod");
 const {Worker, isMainThread, parentPort, workerData} = require('worker_threads');
 const {createSheetAndInsertData} = require("../google-sheets/google-sheets-api");
 
-const MAX_WORKERS = process.env.MAX_WORKERS || 2;
+const MAX_WORKERS = parseInt(process.env.MAX_WORKERS) || 2;
 const workerPool = new Set();
 
 
@@ -118,7 +117,6 @@ if (!isMainThread) {
             logger.info(`Processing offer data for email ${emailId}`);
             await processOfferData(emailDir);
             logger.info(`Processed email ${emailId}`);
-            // await fs.writeFile(path.join(emailDir, 'zod_fitting_done'), '');
             parentPort.postMessage('done');
 
             await createSheetAndInsertData(emailDir);
@@ -167,7 +165,7 @@ async function processNewEmails(connection) {
                 await processEmail(connection, message);
             } catch (error) {
                 logger.error(`Error processing message ${i + 1}:`, error);
-                // Kontynuuj przetwarzanie następnych wiadomości
+                // Continue processing next messages
             }
         }
 
@@ -184,13 +182,7 @@ async function getEmailContent(message) {
     try {
         // Find the part that contains the full email content
         const all = message.parts.find(part => part.which === '');
-
-        // if (!all) {
-        //     throw new Error('No full message body found');
-        // }
-
         const rawEmail = all.body;
-
         logger.debug('Raw email data retrieved', {uid});
 
         logger.debug('Starting email parsing', {uid});
@@ -208,7 +200,7 @@ async function getEmailContent(message) {
         };
     } catch (err) {
         logger.error('Error fetching or parsing email', {error: err, uid});
-        // throw err;
+        return { subject: 'Error', body: 'Failed to parse email' };
     }
 }
 
@@ -239,7 +231,6 @@ async function processEmailAttachments(connection, message, emailDir) {
                     const partData = await connection.getPartData(message, part);
                     const filePath = path.join(emailDir, filename);
                     await fs.writeFile(filePath, partData);
-                    // logger.info('Attachment saved:', filename);
 
                     const processedFilePath = await processAttachment(filePath, extension);
                     attachmentResults.push({
@@ -289,7 +280,6 @@ async function markMessageAsSeen(connection, uid) {
     });
 }
 
-// Eksportuj tylko jeśli jest to główny wątek
 if (isMainThread) {
     module.exports = {
         processNewEmails,

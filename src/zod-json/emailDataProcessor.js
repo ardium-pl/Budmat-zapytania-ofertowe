@@ -1,5 +1,4 @@
 const {OpenAI} = require('openai');
-const {zodResponseFormat} = require('openai/helpers/zod');
 const {zodToJsonSchema} = require('zod-to-json-schema');
 const {EmailDataSchema, OutputSchema} = require('./emailDataSchema');
 const fs = require('fs').promises;
@@ -16,7 +15,7 @@ async function processOfferData(emailDir) {
         const rawData = await fs.readFile(allJsonPath, 'utf8');
         const jsonData = JSON.parse(rawData);
 
-        // Waliduj dane wejściowe używając schematu Zod
+        // Validate input data using Zod schema
         const validatedData = EmailDataSchema.parse(jsonData);
 
         const client = new OpenAI();
@@ -92,29 +91,28 @@ async function processOfferData(emailDir) {
             response_format: responseFormat, // Use manually constructed response_format
         });
 
-        // Logowanie zużytych tokenów
+        // Log token usage
         const tokenUsage = completion.usage;
-        logger.warn(`Zużyto ${tokenUsage.total_tokens} tokenów. (Prompty: ${tokenUsage.prompt_tokens}, Odpowiedź: ${tokenUsage.completion_tokens})`);
-
+        logger.warn(`Used ${tokenUsage.total_tokens} tokens. (Prompts: ${tokenUsage.prompt_tokens}, Response: ${tokenUsage.completion_tokens})`);
 
         const message = completion.choices[0]?.message;
         if (message?.parsed) {
-            // Dodatkowe czyszczenie i walidacja danych
+            // Additional data cleaning and validation
             const cleanedData = cleanAndValidateData(message.parsed);
 
-            // Zapisz przetworzone dane
+            // Save processed data
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
             await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
 
             logger.debug(`Processed offer data saved to ${processedDataPath}`);
             return cleanedData;
         } else {
-            logger.error(message.refusal);
-            // throw new Error("Unexpected response from OpenAI API");
+            logger.error('Unexpected response from OpenAI API:', message.refusal);
+            return null; // Return null instead of throwing an error
         }
     } catch (error) {
         logger.error(`Error processing offer data: ${error.message}`);
-        // throw error;
+        return null; // Return null instead of throwing an error
     }
 }
 

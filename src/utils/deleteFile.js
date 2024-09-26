@@ -1,17 +1,18 @@
-const fs = require("fs");
-const {createLogger}  = require('../utils/logger');
+const fs = require("fs").promises;
+const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
 async function deleteFile(filePath) {
     try {
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            logger.info('File deleted', { filePath });
-        } else {
-            logger.error(`File not found: ${filePath}`);
-        }
+        await fs.access(filePath);
+        await fs.unlink(filePath);
+        logger.info('File deleted', { filePath });
     } catch (err) {
-        logger.error(`Error deleting file ${filePath}:`, err);
+        if (err.code === 'ENOENT') {
+            logger.warn(`File not found: ${filePath}`);
+        } else {
+            logger.error(`Error deleting file ${filePath}:`, err);
+        }
     }
 }
 

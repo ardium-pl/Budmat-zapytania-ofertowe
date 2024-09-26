@@ -16,8 +16,7 @@ let unnamedCounter = 0;
 
 function decodeFilename(filename) {
     if (!filename) {
-        unnamedCounter++;
-        return `unnamed_attachment_${unnamedCounter}`;
+        return `unnamed_attachment_${++unnamedCounter}`;
     }
 
     if (filename.startsWith('=?UTF-8?Q?')) {

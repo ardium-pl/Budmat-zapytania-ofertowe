@@ -5,15 +5,18 @@ const fs = require("fs").promises;
 
 async function createDataDirectories() {
     const directories = [DATA_DIR, PROCESSED_DIR, TEMP_DIR];
-    try {
-        for (const dir of directories) {
-            await fs.mkdir(dir, {recursive: true});
+
+    for (const dir of directories) {
+        try {
+            await fs.mkdir(dir, { recursive: true });
+            logger.info(`Directory created or verified: ${dir}`);
+        } catch (err) {
+            logger.error(`Error creating directory ${dir}:`, err);
+            // Instead of throwing, we'll continue to the next directory
         }
-        logger.info("Data directories created or verified.");
-    } catch (err) {
-        logger.error('Error while creating directories:', err);
-        throw err;
     }
+
+    logger.info("Finished creating/verifying data directories.");
 }
 
 module.exports = {

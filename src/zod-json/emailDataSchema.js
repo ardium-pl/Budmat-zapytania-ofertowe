@@ -1,10 +1,12 @@
 const z = require('zod');
 
+// Schema for email attachments
 const AttachmentSchema = z.object({
     filename: z.string(),
     processed: z.boolean()
 });
 
+// Schema for the main email data
 const EmailDataSchema = z.object({
     subject: z.string(),
     body: z.string(),
@@ -19,22 +21,7 @@ const EmailDataSchema = z.object({
     attachments: z.array(z.any()).optional()
 });
 
-
-// const ProductSchema = z.object({
-//     itemNumber: z.string().optional(),
-//     grade: z.string().optional(),
-//     surface: z.string().optional(),
-//     thickness: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
-//     width: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
-// //     thickness: z.object({
-// //         numer: z.number(),
-// //         zestaw: z.tuple([z.number(), z.number()])
-// // }),
-//     length: z.union([z.number(), z.tuple([z.number(), z.number()])]).optional(),
-//     quantity: z.number().optional(),
-//     price: z.number().optional()
-// });
-
+// Schema for individual product details
 const ProductSchema = z.object({
     nameOfProduct: z.string().optional(),
     itemNumber: z.string().optional(),
@@ -51,7 +38,7 @@ const ProductSchema = z.object({
     // grossValue: z.number().optional(),
 });
 
-
+// Schema for the overall output structure
 const OutputSchema = z.object({
     offerNumber: z.string().optional(),
     offerDate: z.string().optional(),

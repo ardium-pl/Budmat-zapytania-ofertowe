@@ -8,17 +8,20 @@ const {createDataDirectories} = require("./src/utils/createDataDirectories");
 
 async function main() {
     try {
-
+        // Create necessary data directories
         await createDataDirectories();
 
+        // Set up OAuth2 credentials
         const CREDENTIALS = {
             client_id: process.env.CLIENT_ID,
             client_secret: process.env.CLIENT_SECRET,
             redirect_uris: process.env.REDIRECT_URIS,
         };
+
+        // Authorize the OAuth2 client
         const oAuth2Client = await authorize(CREDENTIALS);
 
-        // Sprawdź, czy argument --reset jest obecny
+        // Check if the --reset argument is present
         const shouldReset = process.argv.includes("--reset");
 
         if (shouldReset) {
@@ -30,8 +33,14 @@ async function main() {
             await startImapListener(oAuth2Client);
         }
     } catch (error) {
-        logger.error("Error occurred:", error);
+        logger.error("An error occurred during execution:", error);
+        process.exit(1); // Exit with error code
     }
 }
+
+// Catch unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 main();
