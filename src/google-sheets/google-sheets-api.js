@@ -17,6 +17,12 @@ async function createSheetAndInsertData(emailDir) {
         const rawData = await fs.readFile(processedDataPath, 'utf8');
         const processedData = JSON.parse(rawData);
 
+        logger.debug(`Przetworzone dane: ${JSON.stringify(processedData, null, 2)}`);
+
+        if (!processedData || !processedData.products || processedData.products.length === 0) {
+            throw new Error('Brak danych produktów w przetworzonych danych');
+        }
+
         const auth = new google.auth.GoogleAuth({
             credentials: GOOGLE_SHEETS_ACCOUNT,
             scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -24,7 +30,7 @@ async function createSheetAndInsertData(emailDir) {
 
         const sheets = google.sheets({ version: 'v4', auth });
 
-        const sheetName = processedData.supplier.name;
+        const sheetName = processedData.supplier?.name || 'Nowy arkusz';
         const duplicateRequest = {
             spreadsheetId: SPREADSHEET_ID,
             resource: {
@@ -45,26 +51,40 @@ async function createSheetAndInsertData(emailDir) {
 
         const values = [
             ['Offer Number', 'Offer Date', 'Customer Name', 'Customer Location', 'Supplier Name', 'Currency', 'Payment Terms', 'Total Quantity'],
-            [processedData.offerNumber, processedData.offerDate, processedData.customer.name, processedData.customer.location, processedData.supplier.name, processedData.offerDetails.currency, processedData.offerDetails.paymentTerms, processedData.offerDetails.totalQuantity],
+            [
+                processedData.offerNumber || 'N/A',
+                processedData.offerDate || 'N/A',
+                processedData.customer?.name || 'N/A',
+                processedData.customer?.location || 'N/A',
+                processedData.supplier?.name || 'N/A',
+                processedData.offerDetails?.currency || 'N/A',
+                processedData.offerDetails?.paymentTerms || 'N/A',
+                processedData.offerDetails?.totalQuantity || 'N/A'
+            ],
             [],
             ['Products'],
             ['Name of Product', 'Quantity', 'Net Price', 'Gross Price'],
-            [processedData.products[0].nameOfProduct, processedData.offerDetails.totalQuantity, '', ''],
+            [
+                processedData.products[0]?.nameOfProduct || 'N/A',
+                processedData.offerDetails?.totalQuantity || 'N/A',
+                '',
+                ''
+            ],
             [],
             ['Material', 'Grubość', 'Szerokość', 'Gatunek', 'Powłoka metaliczna', 'Powłoka lakiernicza', 'Producent', 'Cena netto', 'Cena brutto']
         ];
 
         processedData.products.forEach(product => {
             values.push([
-                product.material || 'undefined',
-                product.thickness,
-                product.width,
-                product.grade,
-                product.surface || '',
-                '',  // Powłoka lakiernicza - brak w JSON
-                '',  // Producent - brak w JSON
-                product.price && product.price.net ? product.price.net : 'N/A',
-                product.price && product.price.gross ? product.price.gross : 'N/A'
+                product.material || 'N/A',
+                product.thickness || 'N/A',
+                product.width || 'N/A',
+                product.grade || 'N/A',
+                product.surface || 'N/A',
+                'N/A',  // Powłoka lakiernicza - brak w JSON
+                'N/A',  // Producent - brak w JSON
+                product.price?.net || 'N/A',
+                product.price?.gross || 'N/A'
             ]);
         });
 
@@ -125,6 +145,7 @@ async function createSheetAndInsertData(emailDir) {
         logger.debug(`Arkusz utworzony i dane wstawione pomyślnie.`);
     } catch (error) {
         logger.error(`Błąd podczas tworzenia arkusza i wstawiania danych: ${error.message}`);
+        logger.debug(`Stos błędu: ${error.stack}`);
     }
 }
 
