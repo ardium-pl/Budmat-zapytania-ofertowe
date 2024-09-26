@@ -100,11 +100,38 @@ const express = require('express');
 const {createLogger}  = require('../utils/logger');
 const logger = createLogger(__filename);
 
-const TOKEN_PATH = path.join(__dirname, '../../token.json');
+
+// Definiujemy bazową ścieżkę do wolumenu
+const VOLUME_PATH = '/app/processed_attachments';
+
+// Upewniamy się, że używamy tylko jednego poziomu 'processed_attachments'
+const TOKEN_PATH = path.join(VOLUME_PATH, 'token.json');
+
 const SCOPES = ['https://mail.google.com/'];
 const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minut
 
 let oAuth2Client;
+
+async function ensureDirectoryExists(dirPath) {
+    try {
+        await fs.mkdir(dirPath, { recursive: true });
+        logger.info(`Katalog ${dirPath} został utworzony lub już istnieje`);
+    } catch (error) {
+        logger.error(`Błąd podczas tworzenia katalogu ${dirPath}:`, error);
+        throw error;
+    }
+}
+
+async function saveToken(tokens) {
+    try {
+        await ensureDirectoryExists(path.dirname(TOKEN_PATH));
+        await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens));
+        logger.info(`Token zapisany w pliku: ${TOKEN_PATH}`);
+    } catch (error) {
+        logger.error(`Błąd podczas zapisywania tokenu:`, error);
+        throw error;
+    }
+}
 
 async function authorize(credentials) {
     const {client_secret, client_id, redirect_uris} = credentials;
@@ -120,14 +147,11 @@ async function authorize(credentials) {
         logger.info(`Typ access_token: ${typeof token.access_token}`);
         logger.info(`Długość access_token: ${token.access_token.length}`);
 
-        oAuth2Client.on('tokens', (tokens) => {
+        oAuth2Client.on('tokens', async (tokens) => {
             logger.info('Otrzymano nowe tokeny');
             logger.info(`Typ nowego access_token: ${typeof tokens.access_token}`);
             logger.info(`Długość nowego access_token: ${tokens.access_token.length}`);
-            fs.writeFile(TOKEN_PATH, JSON.stringify(tokens))
-                .then(() => logger.info(`Token zaktualizowany i zapisany w pliku: ${TOKEN_PATH}`))
-                .catch((err) => logger.error(`Błąd podczas zapisywania tokenu: ${err}`));
-
+            await saveToken(tokens);
             logger.info(`Token odświeżony. Nowa data wygaśnięcia: ${new Date(tokens.expiry_date).toLocaleString()}`);
         });
 
@@ -151,6 +175,7 @@ async function refreshTokenIfNeeded() {
             logger.info('Token wygasa, próba odświeżenia...');
             const { credentials } = await oAuth2Client.refreshAccessToken();
             oAuth2Client.setCredentials(credentials);
+            await saveToken(credentials);
             logger.info('Token odświeżony pomyślnie');
             logger.info(`Typ odświeżonego access_token: ${typeof credentials.access_token}`);
             logger.info(`Długość odświeżonego access_token: ${credentials.access_token.length}`);
@@ -179,7 +204,7 @@ function getNewToken(oAuth2Client) {
             try {
                 const {tokens} = await oAuth2Client.getToken(code);
                 oAuth2Client.setCredentials(tokens);
-                await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens));
+                await saveToken(tokens);
                 logger.info(`Nowy token zapisany w pliku: ${TOKEN_PATH}`);
                 logger.silly(`Pełna ścieżka do pliku z tokenem: ${path.resolve(TOKEN_PATH)}`);
                 res.send('Autoryzacja zakończona pomyślnie! Możesz zamknąć tę kartę.');
