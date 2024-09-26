@@ -143,9 +143,20 @@ async function authorize(credentials) {
         const token = JSON.parse(await fs.readFile(TOKEN_PATH));
         oAuth2Client.setCredentials(token);
 
-        logger.silly(`Token odczytany z pliku: ${TOKEN_PATH}`);
+        logger.info(`Token odczytany z pliku: ${TOKEN_PATH}`);
         logger.info(`Typ access_token: ${typeof token.access_token}`);
         logger.info(`Długość access_token: ${token.access_token.length}`);
+
+        if (!token.refresh_token) {
+            logger.warn('Brak refresh tokenu. Rozpoczynam proces uzyskiwania nowego tokenu.');
+            return getNewToken(oAuth2Client);
+        }
+
+        const isTokenValid = await validateToken(oAuth2Client);
+        if (!isTokenValid) {
+            logger.warn('Token jest nieważny. Rozpoczynam proces uzyskiwania nowego tokenu.');
+            return getNewToken(oAuth2Client);
+        }
 
         oAuth2Client.on('tokens', async (tokens) => {
             logger.info('Otrzymano nowe tokeny');
@@ -155,17 +166,25 @@ async function authorize(credentials) {
             logger.info(`Token odświeżony. Nowa data wygaśnięcia: ${new Date(tokens.expiry_date).toLocaleString()}`);
         });
 
-        await refreshTokenIfNeeded();
-
         // Uruchom automatyczne odświeżanie tokenu
         setInterval(refreshTokenIfNeeded, REFRESH_INTERVAL);
 
-        logger.silly(`Autentykacja zakończona sukcesem, użyto tokenu z: ${TOKEN_PATH}`);
+        logger.info(`Autentykacja zakończona sukcesem, użyto tokenu z: ${TOKEN_PATH}`);
         return oAuth2Client;
     } catch (err) {
-        logger.warn(`Nie znaleziono istniejącego tokenu. Rozpoczynam proces uzyskiwania nowego tokenu.`);
+        logger.warn(`Nie znaleziono istniejącego tokenu lub token jest nieprawidłowy. Rozpoczynam proces uzyskiwania nowego tokenu.`);
         logger.error(`Błąd podczas odczytu tokenu z ${TOKEN_PATH}:`, err);
         return getNewToken(oAuth2Client);
+    }
+}
+
+async function validateToken(auth) {
+    try {
+        await auth.getAccessToken();
+        return true;
+    } catch (error) {
+        logger.error('Błąd podczas walidacji tokenu:', error);
+        return false;
     }
 }
 
@@ -197,7 +216,12 @@ function getNewToken(oAuth2Client) {
         const authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: SCOPES,
+            prompt: 'consent'  // Wymusza zapytanie o zgodę, co powinno zawsze zwrócić refresh token
         });
+
+        logger.info(`Serwer nasłuchuje na porcie: ${port}`);
+        logger.info('URL aplikacji: ' + authUrl);
+        logger.warn(`Otwórz ten URL w przeglądarce, aby autoryzować aplikację: ${authUrl}`);
 
         app.get('/auth/google/callback', async (req, res) => {
             const {code} = req.query;
