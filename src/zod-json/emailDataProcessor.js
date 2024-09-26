@@ -56,23 +56,24 @@ async function processOfferData(emailDir) {
            - Użyj tablicy dwuelementowej [min, max] jeśli podano zakres np. min. 280 - max 300.
            - Użyj pojedynczej liczby, jeśli podano tylko jedną wartość np. 1240.
         5. Upewnij się, że wszystkie dane numeryczne są zapisane jako liczby, nie stringi.
-        6. Dla pól produktów:
+        6. Dostawca powinien być określony po słowie 'Mill', ale nie dopisuj tego słowa do nazwy dostawcy. Jeżeli nie możesz łatwo znaleźć dostawcy, spróbuj znaleźć go z domenie mailowej.
+        7. Dla pól produktów:
            - nameOfProduct: nazwa produktu (np. "Blacha stalowa")
-           - material: rodzaj materiału (np. "stal zimnowalcowana")
+           - material: rodzaj materiału (ta informacja często występuje przy kluczu 'Commodity' np. "stal zimnowalcowana")
            - thickness: grubość w mm
            - width: szerokość w mm
            - grade: gatunek stali (np. "HC220")
            - metalCoating: rodzaj powłoki metalicznej (jeśli podano)
            - paintCoating: rodzaj powłoki lakierniczej (jeśli podano)
            - manufacturer: producent (jeśli podano)
-           - price: jeśli podano tylko jedną cenę, użyj jej jako wartości jednostkowej. Jeśli podano dwie ceny, rozbij je na net i gross.
+           - price: cena danego produktu (jeśli podano).
            - quantity: ilość (jesli podano, nie mieszaj z innymi polami)
-        7. Dla szczegółów oferty (offerDetails):
+        8. Dla szczegółów oferty (offerDetails):
            - currency: waluta oferty
-           - deliveryTerms: warunki dostawy
-           - deliveryDate: termin dostawy
-           - paymentTerms: termin płatności
-        8. Nie dodawaj żadnych informacji, których nie ma w danych wejściowych - lepiej zostawić pole puste niż zgadywać.`
+           - deliveryTerms: warunki dostawy (np. CIP Gdańsk, DDP Płock)
+           - deliveryDate: termin dostawy (np. Sept/Oct, )
+           - paymentTerms: termin płatności (np. "net cash. 60 days date of invoice")
+        9. Nie dodawaj żadnych informacji, których nie ma w danych wejściowych - lepiej zostawić pole puste niż zgadywać.`
                 },
                 {
                     role: "user",
