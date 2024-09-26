@@ -12,18 +12,29 @@ const {SPREADSHEET_ID, TEMPLATE_SHEET_ID} = process.env;
 async function createUniqueSheetName(sheets, baseName) {
     let sheetName = baseName || "New Sheet";
     let counter = 1;
-    const existingSheets = await sheets.spreadsheets.get({
-        spreadsheetId: SPREADSHEET_ID,
-        fields: "sheets.properties.title",
-    });
+    let isUnique = false;
 
-    const existingNames = existingSheets.data.sheets.map(
-        (sheet) => sheet.properties.title
-    );
+    while (!isUnique) {
+        try {
+            const existingSheets = await sheets.spreadsheets.get({
+                spreadsheetId: SPREADSHEET_ID,
+                fields: "sheets.properties.title",
+            });
 
-    while (existingNames.includes(sheetName)) {
-        sheetName = `${baseName || "New Sheet"} - Copy ${counter}`;
-        counter++;
+            const existingNames = existingSheets.data.sheets.map(
+                (sheet) => sheet.properties.title
+            );
+
+            if (!existingNames.includes(sheetName)) {
+                isUnique = true;
+            } else {
+                sheetName = `${baseName || "New Sheet"} - Copy ${counter}`;
+                counter++;
+            }
+        } catch (error) {
+            logger.error(`Error fetching existing sheet names: ${error.message}`);
+            throw error;
+        }
     }
 
     return sheetName;
