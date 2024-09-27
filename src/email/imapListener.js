@@ -5,6 +5,8 @@ const {EMAIL_ADDRESS} = require('../../config/constants');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
+const RECONNECT_DELAY = 60000; // 1 minute
+
 async function startImapListener(auth) {
     const getAccessToken = async () => {
         await refreshTokenIfNeeded();
