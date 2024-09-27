@@ -8,10 +8,20 @@ const logger = createLogger(__filename);
 
 const RECONNECT_DELAY = 60000; // 1 minute
 
+let currentConnection = null;
+
 async function startImapListener(auth) {
     const getAccessToken = async () => {
         await refreshTokenIfNeeded();
         return auth.credentials.access_token;
+    };
+
+    const closeCurrentConnection = () => {
+        if (currentConnection) {
+            logger.info('Closing the existing IMAP connection...');
+            currentConnection.end();
+            currentConnection = null;
+        }
     };
 
     const startConnection = async () => {
@@ -45,32 +55,36 @@ async function startImapListener(auth) {
                 onmail: async () => {
                     logger.info('New email received. Processing...');
                     try {
-                        await processNewEmail(connection);
+                        await processNewEmail(currentConnection);
                     } catch (error) {
                         logger.error('Error processing new email:', error);
                     }
                 },
             };
 
+            closeCurrentConnection(); // Close the previous connection before creating a new one
+
             logger.info(`Attempting to connect to IMAP using address: ${EMAIL_ADDRESS}`);
-            const connection = await imaps.connect(config);
+            currentConnection = await imaps.connect(config);
             logger.info('Connected to IMAP server');
 
-            connection.on('error', (err) => {
+            currentConnection.on('error', (err) => {
                 logger.error('IMAP connection error:', err);
-                connection.end();
+                currentConnection.end();
+                currentConnection = null;
                 setTimeout(() => startConnection(), RECONNECT_DELAY);
             });
 
-            connection.on('close', () => {
+            currentConnection.on('close', () => {
                 logger.warn('IMAP connection closed unexpectedly');
+                currentConnection = null;
                 setTimeout(() => startConnection(), RECONNECT_DELAY);
             });
 
-            await processNewEmails(connection);
+            await processNewEmails(currentConnection);
 
             logger.info('Listening for new emails...');
-            connection.imap.on('mail', config.onmail);
+            currentConnection.imap.on('mail', config.onmail);
 
         } catch (err) {
             logger.error('Error during IMAP connection attempt:', err);
