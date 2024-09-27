@@ -152,37 +152,44 @@ Below is a sequence diagram illustrating the main process flow of the Gmail Extr
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant ImapListener
-    participant EmailProcessor
-    participant AttachmentProcessor
-    participant FileHandlers
-    participant AuthHandler
-    participant Gmail
-    participant GoogleSheets
+   participant User
+   participant ImapListener
+   participant EmailProcessor
+   participant AttachmentProcessor
+   participant FileHandlers
+   participant AuthHandler
+   participant ZodProcessor
+   participant OpenAIProcessor
+   participant Gmail
+   participant GoogleSheets
 
-    User->>ImapListener: Start application
-    ImapListener->>AuthHandler: Request authentication
-    AuthHandler->>Gmail: Authenticate (OAuth2)
-    Gmail-->>AuthHandler: Return access token
-    AuthHandler-->>ImapListener: Authentication successful
+   User->>ImapListener: Start application
+   ImapListener->>AuthHandler: Request authentication
+   AuthHandler->>Gmail: Authenticate (OAuth2)
+   Gmail-->>AuthHandler: Return access token
+   AuthHandler-->>ImapListener: Authentication successful
 
-    loop Listen for new emails
-        ImapListener->>Gmail: Check for new emails
-        Gmail-->>ImapListener: New email notification
-        ImapListener->>EmailProcessor: Process new email
-        EmailProcessor->>Gmail: Fetch email content
-        Gmail-->>EmailProcessor: Return email content
-        EmailProcessor->>AttachmentProcessor: Process attachments
-        AttachmentProcessor->>FileHandlers: Handle specific file types
-        FileHandlers-->>AttachmentProcessor: Return processed data
-        AttachmentProcessor-->>EmailProcessor: Return processed attachments
-        EmailProcessor->>EmailProcessor: Combine email data
-        EmailProcessor->>GoogleSheets: Update spreadsheet
-        GoogleSheets-->>EmailProcessor: Confirmation
-    end
+   loop Listen for new emails
+      ImapListener->>Gmail: Check for new emails
+      Gmail-->>ImapListener: New email notification
+      ImapListener->>EmailProcessor: Process new email
+      EmailProcessor->>Gmail: Fetch email content
+      Gmail-->>EmailProcessor: Return email content
+      EmailProcessor->>AttachmentProcessor: Process attachments
+      AttachmentProcessor->>FileHandlers: Handle specific file types
+      FileHandlers-->>AttachmentProcessor: Return processed data
+      AttachmentProcessor-->>EmailProcessor: Return processed attachments
+      EmailProcessor->>EmailProcessor: Combine email data (all_{emailId}.json)
+      EmailProcessor->>ZodProcessor: Validate combined data
+      ZodProcessor-->>EmailProcessor: Return validated data
+      EmailProcessor->>OpenAIProcessor: Process data with OpenAI
+      OpenAIProcessor-->>EmailProcessor: Return structured data
+      EmailProcessor->>EmailProcessor: Save processed_offer_{emailId}.json
+      EmailProcessor->>GoogleSheets: Update spreadsheet with processed data
+      GoogleSheets-->>EmailProcessor: Confirmation
+   end
 
-    ImapListener->>User: Notification of processed emails
+   ImapListener->>User: Notification of processed emails
 ```
 
 ## File Processing
