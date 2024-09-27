@@ -8,7 +8,9 @@ const logger = createLogger(__filename);
 
 const RECONNECT_DELAY = 60000; // 1 minute
 
+
 let currentConnection = null;
+let isManuallyClosingConnection = false; // Flag to track manual closing
 
 async function startImapListener(auth) {
     const getAccessToken = async () => {
@@ -19,6 +21,7 @@ async function startImapListener(auth) {
     const closeCurrentConnection = () => {
         if (currentConnection) {
             logger.info('Closing the existing IMAP connection...');
+            isManuallyClosingConnection = true;  // Set the flag before closing the connection
             currentConnection.end();
             currentConnection = null;
         }
@@ -68,17 +71,26 @@ async function startImapListener(auth) {
             currentConnection = await imaps.connect(config);
             logger.info('Connected to IMAP server');
 
+            // Reset the manual closure flag when the connection is successfully established
+            isManuallyClosingConnection = false;
+
             currentConnection.on('error', (err) => {
                 logger.error('IMAP connection error:', err);
-                currentConnection.end();
+                if (currentConnection) currentConnection.end();
                 currentConnection = null;
                 setTimeout(() => startConnection(), RECONNECT_DELAY);
             });
 
             currentConnection.on('close', () => {
-                logger.warn('IMAP connection closed unexpectedly');
-                currentConnection = null;
-                setTimeout(() => startConnection(), RECONNECT_DELAY);
+                if (!isManuallyClosingConnection) {
+                    // Only reconnect if the closure was not intentional
+                    logger.warn('IMAP connection closed unexpectedly, attempting to reconnect...');
+                    currentConnection = null;
+                    setTimeout(() => startConnection(), RECONNECT_DELAY);
+                } else {
+                    logger.info('IMAP connection closed manually.');
+                    isManuallyClosingConnection = false; // Reset the flag
+                }
             });
 
             await processNewEmails(currentConnection);
@@ -98,7 +110,8 @@ async function startImapListener(auth) {
     auth.on('tokens', async (tokens) => {
         logger.info('Received new tokens');
         await saveToken(tokens);
-        await startConnection();
+        closeCurrentConnection(); // Close the connection before starting a new one
+        await startConnection();  // Start a new connection after token refresh
     });
 }
 
