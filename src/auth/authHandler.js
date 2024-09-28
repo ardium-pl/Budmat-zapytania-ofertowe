@@ -6,12 +6,12 @@ const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
 // Define the base path to the volume
-// const VOLUME_PATH = '/app/processed_attachments';
-//
-// // Ensure we're using only one level of 'processed_attachments'
-// const TOKEN_PATH = path.join(VOLUME_PATH, 'token.json');
+const VOLUME_PATH = '/app/processed_attachments';
 
-const TOKEN_PATH = path.join(__dirname, '../../token.json');
+// Ensure we're using only one level of 'processed_attachments'
+const TOKEN_PATH = path.join(VOLUME_PATH, 'token.json');
+
+// const TOKEN_PATH = path.join(__dirname, '../../token.json');
 
 const SCOPES = ['https://mail.google.com/'];
 const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
