@@ -5,7 +5,11 @@ const express = require('express');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
-const TOKEN_PATH = path.join(__dirname, '../../token.json');
+// Define the base path to the volume
+const VOLUME_PATH = '/app/processed_attachments';
+
+// Ensure we're using only one level of 'processed_attachments'
+const TOKEN_PATH = path.join(VOLUME_PATH, 'token.json');
 
 const SCOPES = ['https://mail.google.com/'];
 const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
@@ -18,7 +22,7 @@ async function ensureDirectoryExists(dirPath) {
         logger.info(`Directory ${dirPath} has been created or already exists`);
     } catch (error) {
         logger.error(`Error creating directory ${dirPath}:`, error);
-        throw error;
+
     }
 }
 
@@ -29,7 +33,7 @@ async function saveToken(tokens) {
         logger.info(`Token saved to file: ${TOKEN_PATH}`);
     } catch (error) {
         logger.error(`Error saving token:`, error);
-        throw error;
+
     }
 }
 
@@ -104,6 +108,13 @@ async function refreshTokenIfNeeded() {
         return true;
     } catch (error) {
         logger.error('Error refreshing token:', error);
+        // If refresh fails, attempt to get a new token
+        logger.warn('Attempting to get a new token...');
+        const newAuth = await getNewToken(oAuth2Client);
+        if (newAuth) {
+            oAuth2Client = newAuth;
+            return true;
+        }
         return false;
     }
 }
@@ -151,7 +162,7 @@ function getNewToken(oAuth2Client) {
 function buildXOAuth2Token(user, accessToken) {
     if (typeof user !== 'string' || typeof accessToken !== 'string') {
         logger.error(`Invalid input for buildXOAuth2Token. User: ${typeof user}, AccessToken: ${typeof accessToken}`);
-        return ''; // Return empty string in case of invalid input
+        return null; // Return null instead of empty string
     }
     const authString = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`;
     const token = Buffer.from(authString).toString('base64');

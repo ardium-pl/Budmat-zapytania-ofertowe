@@ -77,7 +77,7 @@ async function markAllAsUnseen(auth) {
         return connection;
     } catch (error) {
         logger.error('Error in markAllAsUnseen:', error);
-        throw error;
+        return null;
     }
 }
 
