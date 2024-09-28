@@ -119,23 +119,58 @@ if (!isMainThread) {
             await waitForFile(path.join(emailDir, 'processing_complete'));
             await waitForFile(path.join(emailDir, 'all_present'));
             logger.info(`Processing offer data for email ${emailId}`);
-            await processOfferData(emailDir);
-            logger.info(`Processed email ${emailId}`);
-            parentPort.postMessage('done');
 
-            await createSheetAndInsertData(emailDir);
-            logger.info(`Inserted data to Google Sheets for email ${emailId}`);
+            let retries = 0;
+            const maxRetries = 5;
+            let delay = 1000;
 
-            // Create a flag file to indicate that data has been inserted into Google Sheets
-            await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
-            logger.info(`Created sheets_processed flag for email ${emailId}`);
+            while (retries < maxRetries) {
+                try {
+                    const result = await processOfferData(emailDir);
+                    if (result && !result.spam) {
+                        logger.info(`Processed email ${emailId}`);
+                        parentPort.postMessage('done');
 
-            // Wait for the sheets_processed flag before deleting the folder
-            await waitForFile(path.join(emailDir, 'sheets_processed'));
-            deleteEmailFolder(emailDir)
-                .then(() => logger.info(`Deleted email folder ${emailDir}`))
+                        const processedFilePath = path.join(emailDir, `processed_offer_${emailId}.json`);
+                        if (await waitForFile(processedFilePath, 60000)) {
+                            await createSheetAndInsertData(emailDir);
+                            logger.info(`Inserted data to Google Sheets for email ${emailId}`);
+
+                            await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
+                            logger.info(`Created sheets_processed flag for email ${emailId}`);
+
+                            if (await waitForFile(path.join(emailDir, 'sheets_processed'), 10000)) {
+                                await deleteEmailFolder(emailDir);
+                                logger.info(`Deleted email folder ${emailDir}`);
+                            } else {
+                                logger.warn(`Sheets processed flag not created for email ${emailId}, skipping folder deletion`);
+                            }
+                        } else {
+                            logger.error(`Processed file not found: ${processedFilePath}`);
+                        }
+                        break;
+                    } else if (result && result.spam) {
+                        logger.info(`Email ${emailId} marked as spam, skipping further processing`);
+                        await deleteEmailFolder(emailDir);
+                        logger.info(`Deleted spam email folder ${emailDir}`);
+                        break;
+                    }
+                } catch (error) {
+                    retries++;
+                    logger.warn(`Error processing email ${emailId}. Retry ${retries}/${maxRetries}. Error: ${error.message}`);
+                    if (retries < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2;
+                    } else {
+                        logger.error(`Failed to process email ${emailId} after ${maxRetries} attempts`);
+                        break;
+                    }
+                }
+            }
         } catch (error) {
-            logger.error(`Error processing email ${emailId} in worker:`, error);
+            logger.error(`Unexpected error processing email ${emailId}:`, error);
+        } finally {
+            parentPort.postMessage('done');
         }
     }
 
