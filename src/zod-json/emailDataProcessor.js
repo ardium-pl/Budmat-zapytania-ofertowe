@@ -133,7 +133,7 @@ async function processOfferData(emailDir) {
 }
 
 function isSpam(subject, body) {
-    const spamKeywords = ['google', 'alert', 'security', 'spam', 'phishing'];
+    const spamKeywords = ['alert', 'security', 'spam', 'phishing', 'Privacy Checkup', 'privacycheckup', 'privacy'];
     const combinedText = (subject + ' ' + body).toLowerCase();
     return spamKeywords.some(keyword => combinedText.includes(keyword));
 }

@@ -31,7 +31,14 @@ async function createUniqueSheetName(sheets, baseName) {
             if (!existingNames.includes(sheetName)) {
                 isUnique = true;
             } else {
-                sheetName = `${baseName || "New Sheet"} - Copy ${counter}`;
+                // Generate a new name using different patterns based on counter value
+                if (counter <= 5) {
+                    sheetName = `${baseName || "New Sheet"} - Copy ${counter}`;
+                } else if (counter <= 10) {
+                    sheetName = `${baseName || "New Sheet"} (${Date.now()})`;
+                } else {
+                    sheetName = `${baseName || "New Sheet"} - Version ${counter}`;
+                }
                 counter++;
             }
         } catch (error) {
@@ -52,8 +59,14 @@ async function retryOperation(operation, retries = MAX_RETRIES, delay = INITIAL_
             await new Promise(resolve => setTimeout(resolve, delay));
             return retryOperation(operation, retries - 1, delay * 2);
         }
-        return { error };  // Zwracamy obiekt z błędem zamiast rzucać wyjątek
+        return {error};  // Zwracamy obiekt z błędem zamiast rzucać wyjątek
     }
+}
+
+function generateNewSheetName(baseName, counter) {
+    // Generowanie nowej unikalnej nazwy arkusza z wykorzystaniem losowego ciągu znaków
+    const randomString = Math.random().toString(36).substring(2, 7); // Generuje losowy ciąg znaków
+    return `${baseName || "New Sheet"} - ${counter}-${randomString}`;
 }
 
 async function createSheetAndInsertData(emailDir) {
@@ -78,14 +91,36 @@ async function createSheetAndInsertData(emailDir) {
             scopes: ["https://www.googleapis.com/auth/spreadsheets"],
         });
 
-        const sheets = google.sheets({ version: "v4", auth });
+        const sheets = google.sheets({version: "v4", auth});
 
         const baseSheetName = processedData.supplier?.name || "New Offer";
-        const sheetNameResult = await retryOperation(() => createUniqueSheetName(sheets, baseSheetName));
+        let sheetNameResult = await retryOperation(() => createUniqueSheetName(sheets, baseSheetName));
 
         if (sheetNameResult.error) {
             logger.error(`Failed to create unique sheet name for email ${emailId}: ${sheetNameResult.error.message}`);
-            return;  // Kończymy przetwarzanie tego e-maila, ale nie przerywamy całego procesu
+
+            // If error .then
+            let newSheetName;
+            let attemptCounter = 1;
+
+            while (attemptCounter <= MAX_RETRIES) {
+                newSheetName = generateNewSheetName(baseSheetName, attemptCounter);
+                logger.warn(`Retrying with a new sheet name: ${newSheetName} (Attempt: ${attemptCounter})`);
+
+                // Ponowna próba stworzenia nowego arkusza z nową nazwą
+                sheetNameResult = await retryOperation(() => createUniqueSheetName(sheets, newSheetName));
+
+                if (!sheetNameResult.error) {
+                  break;
+                }
+                attemptCounter++;
+            }
+
+            if (sheetNameResult.error) {
+                logger.error(`Failed to generate a unique sheet name after ${MAX_RETRIES} attempts for email ${emailId}: ${sheetNameResult.error.message}`);
+                return;
+            }
+
         }
 
         const sheetName = sheetNameResult;
@@ -119,7 +154,7 @@ async function createSheetAndInsertData(emailDir) {
 
         const addSheetResponse = await retryOperation(() => sheets.spreadsheets.batchUpdate(addSheetRequest));
 
-        if(addSheetResponse.error) {
+        if (addSheetResponse.error) {
             logger.error(`Failed to add sheet for email ${emailId}: ${addSheetResponse.error.message}`);
             return;
         }
@@ -170,7 +205,7 @@ async function createSheetAndInsertData(emailDir) {
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A1`,
             valueInputOption: "USER_ENTERED",
-            resource: { values },
+            resource: {values},
         }));
 
         if (updateResult.error) {
@@ -183,17 +218,23 @@ async function createSheetAndInsertData(emailDir) {
             // Main header formatting
             {
                 mergeCells: {
-                    range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 },
+                    range: {
+                        sheetId: newSheetId,
+                        startRowIndex: 0,
+                        endRowIndex: 1,
+                        startColumnIndex: 0,
+                        endColumnIndex: 8
+                    },
                     mergeType: "MERGE_ALL"
                 }
             },
             {
                 repeatCell: {
-                    range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1 },
+                    range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1},
                     cell: {
                         userEnteredFormat: {
-                            backgroundColor: { red: 0.2, green: 0.6, blue: 0.8 },
-                            textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 14 },
+                            backgroundColor: {red: 0.2, green: 0.6, blue: 0.8},
+                            textFormat: {bold: true, foregroundColor: {red: 1, green: 1, blue: 1}, fontSize: 14},
                             horizontalAlignment: "CENTER",
                             verticalAlignment: "MIDDLE"
                         }
@@ -204,11 +245,11 @@ async function createSheetAndInsertData(emailDir) {
             // Sub-header formatting
             {
                 repeatCell: {
-                    range: { sheetId: newSheetId, startRowIndex: 1, endRowIndex: 2 },
+                    range: {sheetId: newSheetId, startRowIndex: 1, endRowIndex: 2},
                     cell: {
                         userEnteredFormat: {
-                            backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
-                            textFormat: { bold: true },
+                            backgroundColor: {red: 0.9, green: 0.9, blue: 0.9},
+                            textFormat: {bold: true},
                             horizontalAlignment: "CENTER",
                             verticalAlignment: "MIDDLE"
                         }
@@ -219,11 +260,11 @@ async function createSheetAndInsertData(emailDir) {
             // Product header formatting
             {
                 repeatCell: {
-                    range: { sheetId: newSheetId, startRowIndex: 5, endRowIndex: 6 },
+                    range: {sheetId: newSheetId, startRowIndex: 5, endRowIndex: 6},
                     cell: {
                         userEnteredFormat: {
-                            backgroundColor: { red: 0.8, green: 0.8, blue: 0.8 },
-                            textFormat: { bold: true },
+                            backgroundColor: {red: 0.8, green: 0.8, blue: 0.8},
+                            textFormat: {bold: true},
                             horizontalAlignment: "CENTER",
                             verticalAlignment: "MIDDLE"
                         }
@@ -235,10 +276,10 @@ async function createSheetAndInsertData(emailDir) {
             {
                 addConditionalFormatRule: {
                     rule: {
-                        ranges: [{ sheetId: newSheetId, startRowIndex: 6 }],
+                        ranges: [{sheetId: newSheetId, startRowIndex: 6}],
                         booleanRule: {
-                            condition: { type: "CUSTOM_FORMULA", values: [{ userEnteredValue: "=MOD(ROW(),2)=0" }] },
-                            format: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } }
+                            condition: {type: "CUSTOM_FORMULA", values: [{userEnteredValue: "=MOD(ROW(),2)=0"}]},
+                            format: {backgroundColor: {red: 0.95, green: 0.95, blue: 0.95}}
                         }
                     },
                     index: 0
@@ -247,19 +288,25 @@ async function createSheetAndInsertData(emailDir) {
             // Add borders
             {
                 updateBorders: {
-                    range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: values.length, startColumnIndex: 0, endColumnIndex: 8 },
-                    top: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
-                    bottom: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
-                    left: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
-                    right: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
-                    innerHorizontal: { style: "SOLID", color: { red: 0.6, green: 0.6, blue: 0.6 } },
-                    innerVertical: { style: "SOLID", color: { red: 0.6, green: 0.6, blue: 0.6 } }
+                    range: {
+                        sheetId: newSheetId,
+                        startRowIndex: 0,
+                        endRowIndex: values.length,
+                        startColumnIndex: 0,
+                        endColumnIndex: 8
+                    },
+                    top: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+                    bottom: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+                    left: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+                    right: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+                    innerHorizontal: {style: "SOLID", color: {red: 0.6, green: 0.6, blue: 0.6}},
+                    innerVertical: {style: "SOLID", color: {red: 0.6, green: 0.6, blue: 0.6}}
                 }
             },
             // Enable text wrapping for all cells
             {
                 repeatCell: {
-                    range: { sheetId: newSheetId },
+                    range: {sheetId: newSheetId},
                     cell: {
                         userEnteredFormat: {
                             wrapStrategy: "WRAP"
@@ -272,7 +319,7 @@ async function createSheetAndInsertData(emailDir) {
 
         const format = await retryOperation(() => sheets.spreadsheets.batchUpdate({
             spreadsheetId: SPREADSHEET_ID,
-            resource: { requests: formatRequests }
+            resource: {requests: formatRequests}
         }));
 
         if (format.error) {
