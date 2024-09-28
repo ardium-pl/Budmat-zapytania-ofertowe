@@ -3,7 +3,7 @@ const {zodToJsonSchema} = require('zod-to-json-schema');
 const {EmailDataSchema, OutputSchema} = require('./emailDataSchema');
 const fs = require('fs').promises;
 const path = require('path');
-const {createLogger}  = require('../utils/logger');
+const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
 async function processOfferData(emailDir) {
@@ -17,6 +17,14 @@ async function processOfferData(emailDir) {
 
         // Validate input data using Zod schema
         const validatedData = EmailDataSchema.parse(jsonData);
+
+        // Check for spam
+        if (isSpam(validatedData.subject, validatedData.body)) {
+            logger.warn(`Email ${emailId} detected as spam`);
+            await fs.writeFile(path.join(emailDir, 'spam'), '');
+            return {spam: true};
+        }
+
 
         const client = new OpenAI();
 
@@ -123,6 +131,13 @@ async function processOfferData(emailDir) {
         return error; // Return the error to be handled by the retry mechanism
     }
 }
+
+function isSpam(subject, body) {
+    const spamKeywords = ['google', 'alert', 'security', 'spam', 'phishing'];
+    const combinedText = (subject + ' ' + body).toLowerCase();
+    return spamKeywords.some(keyword => combinedText.includes(keyword));
+}
+
 
 // Retry processing offer data in case of rate limit errors -> 429 open Ai error
 async function processOfferDataWithRetry(emailDir, maxRetries = 5, initialDelay = 1000) {

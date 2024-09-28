@@ -58,12 +58,16 @@ async function retryOperation(operation, retries = MAX_RETRIES, delay = INITIAL_
 
 async function createSheetAndInsertData(emailDir) {
     const emailId = path.basename(emailDir).replace("email_", "");
-    const processedDataPath = path.join(
-        emailDir,
-        `processed_offer_${emailId}.json`
-    );
+    const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
+    const spamFlagPath = path.join(emailDir, 'spam');
 
     try {
+        // Check if the email was marked as spam
+        if (await fs.access(spamFlagPath).then(() => true).catch(() => false)) {
+            logger.info(`Skipping sheet creation for spam email ${emailId}`);
+            return;
+        }
+
         const rawData = await fs.readFile(processedDataPath, "utf8");
         const processedData = JSON.parse(rawData);
 
