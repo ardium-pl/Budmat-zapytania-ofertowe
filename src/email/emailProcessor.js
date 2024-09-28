@@ -125,6 +125,15 @@ if (!isMainThread) {
 
             await createSheetAndInsertData(emailDir);
             logger.info(`Inserted data to Google Sheets for email ${emailId}`);
+
+            // Create a flag file to indicate that data has been inserted into Google Sheets
+            await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
+            logger.info(`Created sheets_processed flag for email ${emailId}`);
+
+            // Wait for the sheets_processed flag before deleting the folder
+            await waitForFile(path.join(emailDir, 'sheets_processed'));
+            deleteEmailFolder(emailDir)
+                .then(() => logger.info(`Deleted email folder ${emailDir}`))
         } catch (error) {
             logger.error(`Error processing email ${emailId} in worker:`, error);
         }
@@ -204,7 +213,7 @@ async function getEmailContent(message) {
         };
     } catch (err) {
         logger.error('Error fetching or parsing email', {error: err, uid});
-        return { subject: 'Error', body: 'Failed to parse email' };
+        return {subject: 'Error', body: 'Failed to parse email'};
     }
 }
 
@@ -284,6 +293,16 @@ async function markMessageAsSeen(connection, uid) {
             }
         });
     });
+}
+
+async function deleteEmailFolder(emailDir) {
+    try {
+        await fs.rm(emailDir, {recursive: true, force: true});
+        logger.info(`Successfully deleted email folder: ${emailDir}`);
+    } catch (error) {
+        logger.error(`Error deleting email folder ${emailDir}:`, error);
+        throw error;
+    }
 }
 
 if (isMainThread) {
