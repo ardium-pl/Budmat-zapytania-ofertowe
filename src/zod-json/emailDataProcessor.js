@@ -57,6 +57,7 @@ async function processOfferData(emailDir) {
         5. Upewnij się, że wszystkie dane numeryczne są zapisane jako liczby, nie stringi.
         6. Jeżeli nie możesz łatwo znaleźć dostawcy, spróbuj znaleźć go z domenie mailowej.
         7. Dla pól produktów:
+           - surface: rodzaj powierzchni (np. "gładka", "ryflowana", albo klasyfikowana przez normy np. A, B, C)
            - nameOfProduct: nazwa produktu (np. "Blacha stalowa")
            - material: rodzaj materiału (ta informacja często występuje przy kluczu 'Commodity' np. "stal zimnowalcowana")
            - thickness: grubość w mm
