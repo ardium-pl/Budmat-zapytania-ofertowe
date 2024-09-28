@@ -112,11 +112,39 @@ async function processOfferData(emailDir) {
             return null; // Return null instead of throwing an error
         }
     } catch (error) {
-        logger.error(`Error processing offer data: ${error.message}`);
-        return null; // Return null instead of throwing an error
+        if (error.message.includes('429 Rate limit reached')) {
+            // Extract wait time from error message
+            const waitTime = error.message.match(/Please try again in (\d+\.\d+)s/);
+            if (waitTime) {
+                const delay = Math.ceil(parseFloat(waitTime[1]) * 1000);
+                logger.warn(`Rate limit reached. Suggested wait time: ${delay}ms`);
+            }
+        }
+        return error; // Return the error to be handled by the retry mechanism
     }
 }
 
+// Retry processing offer data in case of rate limit errors -> 429 open Ai error
+async function processOfferDataWithRetry(emailDir, maxRetries = 5, initialDelay = 1000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await processOfferData(emailDir);
+            logger.info(`Successfully processed offer data on attempt ${attempt}`);
+            return result;
+        } catch (error) {
+            if (error.message.includes('429 Rate limit reached') && attempt < maxRetries) {
+                const delay = initialDelay * Math.pow(2, attempt - 1);
+                logger.warn(`Rate limit reached. Retrying in ${delay}ms. Attempt ${attempt} of ${maxRetries}`);
+                await new Promise((resolve) => setTimeout(resolve, delay)); // Use Promise-based delay
+            } else {
+                logger.error(`Error processing offer data on attempt ${attempt}: ${error.message}`);
+                break; // Exit loop instead of throwing error
+            }
+        }
+    }
+    logger.error(`Failed to process offer data after ${maxRetries} attempts.`);
+    return null; // Return a fallback response or null
+}
 
 function cleanAndValidateData(data) {
     const cleanValue = (value) => {
