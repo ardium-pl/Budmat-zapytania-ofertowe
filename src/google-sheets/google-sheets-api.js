@@ -9,6 +9,9 @@ dotenv.config();
 const GOOGLE_SHEETS_ACCOUNT = JSON.parse(process.env.GOOGLE_SHEETS_ACCOUNT);
 const {SPREADSHEET_ID, TEMPLATE_SHEET_ID} = process.env;
 
+const MAX_RETRIES = 5;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+
 async function createUniqueSheetName(sheets, baseName) {
     let sheetName = baseName || "New Sheet";
     let counter = 1;
@@ -33,11 +36,24 @@ async function createUniqueSheetName(sheets, baseName) {
             }
         } catch (error) {
             logger.error(`Error fetching existing sheet names: ${error.message}`);
-            throw error;
+            return null;
         }
     }
 
     return sheetName;
+}
+
+async function retryOperation(operation, retries = MAX_RETRIES, delay = INITIAL_RETRY_DELAY) {
+    try {
+        return await operation();
+    } catch (error) {
+        if (retries > 0 && (error.code === 502 || error.message.includes("502"))) {
+            logger.warn(`Encountered error 502. Retrying in ${delay}ms. Retries left: ${retries}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryOperation(operation, retries - 1, delay * 2);
+        }
+        return { error };  // Zwracamy obiekt z błędem zamiast rzucać wyjątek
+    }
 }
 
 async function createSheetAndInsertData(emailDir) {
@@ -61,7 +77,15 @@ async function createSheetAndInsertData(emailDir) {
         const sheets = google.sheets({ version: "v4", auth });
 
         const baseSheetName = processedData.supplier?.name || "New Offer";
-        const sheetName = await createUniqueSheetName(sheets, baseSheetName);
+        const sheetNameResult = await retryOperation(() => createUniqueSheetName(sheets, baseSheetName));
+
+        if (sheetNameResult.error) {
+            logger.error(`Failed to create unique sheet name for email ${emailId}: ${sheetNameResult.error.message}`);
+            return;  // Kończymy przetwarzanie tego e-maila, ale nie przerywamy całego procesu
+        }
+
+        const sheetName = sheetNameResult;
+
 
         // Create a new sheet
         const addSheetRequest = {
@@ -89,7 +113,12 @@ async function createSheetAndInsertData(emailDir) {
             }
         };
 
-        const addSheetResponse = await sheets.spreadsheets.batchUpdate(addSheetRequest);
+        const addSheetResponse = await retryOperation(() => sheets.spreadsheets.batchUpdate(addSheetRequest));
+
+        if(addSheetResponse.error) {
+            logger.error(`Failed to add sheet for email ${emailId}: ${addSheetResponse.error.message}`);
+            return;
+        }
         const newSheetId = addSheetResponse.data.replies[0].addSheet.properties.sheetId;
 
         // Prepare data for insertion
@@ -133,12 +162,17 @@ async function createSheetAndInsertData(emailDir) {
         }
 
         // Insert data
-        await sheets.spreadsheets.values.update({
+        const updateResult = await retryOperation(() => sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A1`,
             valueInputOption: "USER_ENTERED",
             resource: { values },
-        });
+        }));
+
+        if (updateResult.error) {
+            logger.error(`Failed to update sheet values for email ${emailId}: ${updateResult.error.message}`);
+            return;
+        }
 
         // Apply formatting
         const formatRequests = [
@@ -232,10 +266,15 @@ async function createSheetAndInsertData(emailDir) {
             }
         ];
 
-        await sheets.spreadsheets.batchUpdate({
+        const format = await retryOperation(() => sheets.spreadsheets.batchUpdate({
             spreadsheetId: SPREADSHEET_ID,
             resource: { requests: formatRequests }
-        });
+        }));
+
+        if (format.error) {
+            logger.error(`Failed to format sheet values for email ${emailId}: ${format.error.message}`);
+            return;
+        }
 
         // Auto-resize columns
         const resizeRequest = {
@@ -254,11 +293,17 @@ async function createSheetAndInsertData(emailDir) {
             }
         };
 
-        await sheets.spreadsheets.batchUpdate(resizeRequest);
+        const resize = await retryOperation(() => sheets.spreadsheets.batchUpdate(resizeRequest));
 
+        if (resize.error) {
+            logger.error(`Failed to resize sheet values for email ${emailId}: ${resize.error.message}`);
+            return;
+        }
         logger.info(`Enhanced sheet "${sheetName}" created and data inserted successfully for email ${emailId}.`);
     } catch (error) {
-        logger.error(`Error creating sheet and inserting data for email ${emailId}: ${error.message}`);
+        logger.error(
+            `Error processing data for email ${emailId}: ${error.message}`
+        );
         logger.debug(`Error stack: ${error.stack}`);
     }
 }
