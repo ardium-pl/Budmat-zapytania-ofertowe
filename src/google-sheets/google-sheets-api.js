@@ -9,9 +9,6 @@ dotenv.config();
 const GOOGLE_SHEETS_ACCOUNT = JSON.parse(process.env.GOOGLE_SHEETS_ACCOUNT);
 const {SPREADSHEET_ID, TEMPLATE_SHEET_ID} = process.env;
 
-const MAX_RETRIES = 5;
-const INITIAL_RETRY_DELAY = 1000; // 1 second
-
 async function createUniqueSheetName(sheets, baseName) {
     let sheetName = baseName || "New Sheet";
     let counter = 1;
@@ -36,24 +33,11 @@ async function createUniqueSheetName(sheets, baseName) {
             }
         } catch (error) {
             logger.error(`Error fetching existing sheet names: ${error.message}`);
-            return null;
+            throw error;
         }
     }
 
     return sheetName;
-}
-
-async function retryOperation(operation, retries = MAX_RETRIES, delay = INITIAL_RETRY_DELAY) {
-    try {
-        return await operation();
-    } catch (error) {
-        if (retries > 0 && (error.code === 502 || error.message.includes("502"))) {
-            logger.warn(`Encountered error 502. Retrying in ${delay}ms. Retries left: ${retries}`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return retryOperation(operation, retries - 1, delay * 2);
-        }
-        return { error };  // Zwracamy obiekt z błędem zamiast rzucać wyjątek
-    }
 }
 
 async function createSheetAndInsertData(emailDir) {
@@ -74,53 +58,61 @@ async function createSheetAndInsertData(emailDir) {
             scopes: ["https://www.googleapis.com/auth/spreadsheets"],
         });
 
-        const sheets = google.sheets({version: "v4", auth});
+        const sheets = google.sheets({ version: "v4", auth });
 
         const baseSheetName = processedData.supplier?.name || "New Offer";
-        const sheetNameResult = await retryOperation(() => createUniqueSheetName(sheets, baseSheetName));
+        const sheetName = await createUniqueSheetName(sheets, baseSheetName);
 
-        if (sheetNameResult.error) {
-            logger.error(`Failed to create unique sheet name for email ${emailId}: ${sheetNameResult.error.message}`);
-            return;  // Kończymy przetwarzanie tego e-maila, ale nie przerywamy całego procesu
-        }
-
-        const sheetName = sheetNameResult;
-
-        const duplicateRequest = {
+        // Create a new sheet
+        const addSheetRequest = {
             spreadsheetId: SPREADSHEET_ID,
             resource: {
                 requests: [
                     {
-                        duplicateSheet: {
-                            sourceSheetId: TEMPLATE_SHEET_ID,
-                            insertSheetIndex: 1,
-                            newSheetName: sheetName,
-                        },
-                    },
-                ],
-            },
+                        addSheet: {
+                            properties: {
+                                title: sheetName,
+                                gridProperties: {
+                                    rowCount: 1000,
+                                    columnCount: 26,
+                                    frozenRowCount: 2
+                                },
+                                tabColor: {
+                                    red: 0.2,
+                                    green: 0.7,
+                                    blue: 0.9
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
         };
 
-        const duplicateResult = await retryOperation(() => sheets.spreadsheets.batchUpdate(duplicateRequest));
+        const addSheetResponse = await sheets.spreadsheets.batchUpdate(addSheetRequest);
+        const newSheetId = addSheetResponse.data.replies[0].addSheet.properties.sheetId;
 
-        if (duplicateResult.error) {
-            logger.error(`Failed to duplicate sheet for email ${emailId}: ${duplicateResult.error.message}`);
-            return;
-        }
+        // Prepare data for insertion
+        const headerRow = ["Offer Details", "", "", "", "", "", "", ""];
+        const subHeaderRow = ["Supplier", "Currency", "Delivery Terms", "Delivery Date", "Payment Terms", "Offer Number", "Offer Date", "Total Quantity"];
+        const productHeaders = ["Material", "Thickness (mm)", "Width (mm)", "Grade", "Surface", "Paint Coating", "Manufacturer", "Price"];
 
         const values = [
+            headerRow,
+            subHeaderRow,
             [
                 processedData.supplier?.name || "N/A",
                 processedData.offerDetails?.currency || "N/A",
                 processedData.offerDetails?.deliveryTerms || "N/A",
                 processedData.offerDetails?.deliveryDate || "N/A",
                 processedData.offerDetails?.paymentTerms || "N/A",
+                processedData.offerNumber || "N/A",
+                processedData.offerDate || "N/A",
+                processedData.offerDetails?.totalQuantity || "N/A"
             ],
             [],
-            [],
-            [],
-            [],
-            [],
+            ["Products:"],
+            productHeaders
         ];
 
         if (processedData.products && Array.isArray(processedData.products)) {
@@ -131,8 +123,8 @@ async function createSheetAndInsertData(emailDir) {
                     product.width || "N/A",
                     product.grade || "N/A",
                     product.surface || "N/A",
-                    "N/A", // Paint coating - not in JSON
-                    "N/A", // Manufacturer - not in JSON
+                    product.paintCoating || "N/A",
+                    product.manufacturer || "N/A",
                     product.price || "N/A",
                 ]);
             });
@@ -140,25 +132,133 @@ async function createSheetAndInsertData(emailDir) {
             logger.warn(`No product data found for email ${emailId}`);
         }
 
-        const resource = {values};
-
-        const updateResult = await retryOperation(() => sheets.spreadsheets.values.update({
+        // Insert data
+        await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetName}!A2`,
-            valueInputOption: "RAW",
-            resource,
-        }));
+            range: `${sheetName}!A1`,
+            valueInputOption: "USER_ENTERED",
+            resource: { values },
+        });
 
-        if (updateResult.error) {
-            logger.error(`Failed to update sheet values for email ${emailId}: ${updateResult.error.message}`);
-            return;
-        }
+        // Apply formatting
+        const formatRequests = [
+            // Main header formatting
+            {
+                mergeCells: {
+                    range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 },
+                    mergeType: "MERGE_ALL"
+                }
+            },
+            {
+                repeatCell: {
+                    range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1 },
+                    cell: {
+                        userEnteredFormat: {
+                            backgroundColor: { red: 0.2, green: 0.6, blue: 0.8 },
+                            textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 14 },
+                            horizontalAlignment: "CENTER",
+                            verticalAlignment: "MIDDLE"
+                        }
+                    },
+                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                }
+            },
+            // Sub-header formatting
+            {
+                repeatCell: {
+                    range: { sheetId: newSheetId, startRowIndex: 1, endRowIndex: 2 },
+                    cell: {
+                        userEnteredFormat: {
+                            backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
+                            textFormat: { bold: true },
+                            horizontalAlignment: "CENTER",
+                            verticalAlignment: "MIDDLE"
+                        }
+                    },
+                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                }
+            },
+            // Product header formatting
+            {
+                repeatCell: {
+                    range: { sheetId: newSheetId, startRowIndex: 5, endRowIndex: 6 },
+                    cell: {
+                        userEnteredFormat: {
+                            backgroundColor: { red: 0.8, green: 0.8, blue: 0.8 },
+                            textFormat: { bold: true },
+                            horizontalAlignment: "CENTER",
+                            verticalAlignment: "MIDDLE"
+                        }
+                    },
+                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                }
+            },
+            // Alternate row coloring
+            {
+                addConditionalFormatRule: {
+                    rule: {
+                        ranges: [{ sheetId: newSheetId, startRowIndex: 6 }],
+                        booleanRule: {
+                            condition: { type: "CUSTOM_FORMULA", values: [{ userEnteredValue: "=MOD(ROW(),2)=0" }] },
+                            format: { backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 } }
+                        }
+                    },
+                    index: 0
+                }
+            },
+            // Add borders
+            {
+                updateBorders: {
+                    range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: values.length, startColumnIndex: 0, endColumnIndex: 8 },
+                    top: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
+                    bottom: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
+                    left: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
+                    right: { style: "SOLID", width: 2, color: { red: 0.2, green: 0.2, blue: 0.2 } },
+                    innerHorizontal: { style: "SOLID", color: { red: 0.6, green: 0.6, blue: 0.6 } },
+                    innerVertical: { style: "SOLID", color: { red: 0.6, green: 0.6, blue: 0.6 } }
+                }
+            },
+            // Enable text wrapping for all cells
+            {
+                repeatCell: {
+                    range: { sheetId: newSheetId },
+                    cell: {
+                        userEnteredFormat: {
+                            wrapStrategy: "WRAP"
+                        }
+                    },
+                    fields: "userEnteredFormat.wrapStrategy"
+                }
+            }
+        ];
 
-        logger.info(`Sheet "${sheetName}" created and data inserted successfully for email ${emailId}.`);
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            resource: { requests: formatRequests }
+        });
+
+        // Auto-resize columns
+        const resizeRequest = {
+            spreadsheetId: SPREADSHEET_ID,
+            resource: {
+                requests: [{
+                    autoResizeDimensions: {
+                        dimensions: {
+                            sheetId: newSheetId,
+                            dimension: "COLUMNS",
+                            startIndex: 0,
+                            endIndex: 8
+                        }
+                    }
+                }]
+            }
+        };
+
+        await sheets.spreadsheets.batchUpdate(resizeRequest);
+
+        logger.info(`Enhanced sheet "${sheetName}" created and data inserted successfully for email ${emailId}.`);
     } catch (error) {
-        logger.error(
-            `Error processing data for email ${emailId}: ${error.message}`
-        );
+        logger.error(`Error creating sheet and inserting data for email ${emailId}: ${error.message}`);
         logger.debug(`Error stack: ${error.stack}`);
     }
 }
