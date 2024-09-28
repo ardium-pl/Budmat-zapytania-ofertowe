@@ -129,24 +129,27 @@ if (!isMainThread) {
                     const result = await processOfferData(emailDir);
                     if (result && !result.spam) {
                         logger.info(`Processed email ${emailId}`);
-                        parentPort.postMessage('done');
 
                         const processedFilePath = path.join(emailDir, `processed_offer_${emailId}.json`);
-                        if (await waitForFile(processedFilePath, 60000)) {
+
+                        // Dodajemy krótkie opóźnienie po przetworzeniu oferty
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
+                        if (await waitForFileWithRetry(processedFilePath, 10, 1000)) {
                             await createSheetAndInsertData(emailDir);
                             logger.info(`Inserted data to Google Sheets for email ${emailId}`);
 
                             await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
                             logger.info(`Created sheets_processed flag for email ${emailId}`);
 
-                            if (await waitForFile(path.join(emailDir, 'sheets_processed'), 10000)) {
+                            if (await waitForFileWithRetry(path.join(emailDir, 'sheets_processed'), 5, 1000)) {
                                 await deleteEmailFolder(emailDir);
                                 logger.info(`Deleted email folder ${emailDir}`);
                             } else {
                                 logger.warn(`Sheets processed flag not created for email ${emailId}, skipping folder deletion`);
                             }
                         } else {
-                            logger.error(`Processed file not found: ${processedFilePath}`);
+                            logger.error(`Processed file not found after multiple attempts: ${processedFilePath}`);
                         }
                         break;
                     } else if (result && result.spam) {
@@ -177,6 +180,25 @@ if (!isMainThread) {
     processEmailWorker();
 }
 
+async function waitForFileWithRetry(filePath, maxAttempts = 10, delay = 1000) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (await fileExists(filePath)) {
+            return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    return false;
+}
+
+async function fileExists(filePath) {
+    try {
+        await fs.access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 async function waitForFile(filePath, timeout = 60000) {
     const start = Date.now();
     while (Date.now() - start < timeout) {
@@ -187,7 +209,7 @@ async function waitForFile(filePath, timeout = 60000) {
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
-    throw new Error('Timeout waiting for file');
+    return false;
 }
 
 
