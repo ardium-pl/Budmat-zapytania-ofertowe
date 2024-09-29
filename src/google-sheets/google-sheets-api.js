@@ -160,45 +160,42 @@ async function createSheetAndInsertData(emailDir) {
         }
         const newSheetId = addSheetResponse.data.replies[0].addSheet.properties.sheetId;
 
-        // Prepare data for insertion
-        const headerRow = ["Offer Details", "", "", "", "", "", "", ""];
-        const subHeaderRow = ["Supplier", "Currency", "Delivery Terms", "Delivery Date", "Payment Terms", "Offer Number", "Offer Date", "Total Quantity"];
-        const productHeaders = ["Material", "Thickness (mm)", "Width (mm)", "Grade", "Surface", "Paint Coating", "Manufacturer", "Price"];
+    // Prepare data for insertion
+    const subHeaderRow = ["Dostawca", "Waluta", "Warunki dostawy", "Data dostawy", "Warunki płatności", "Numer oferty", "Data oferty", "Całkowita ilość"];
+    const productHeaders = ["Materiał", "Grubość (mm)", "Szerokość (mm)", "Gatunek", "Powierzchnia", "Powłoka malarska", "Producent", "Cena"];
 
-        const values = [
-            headerRow,
-            subHeaderRow,
-            [
-                processedData.supplier?.name || "N/A",
-                processedData.offerDetails?.currency || "N/A",
-                processedData.offerDetails?.deliveryTerms || "N/A",
-                processedData.offerDetails?.deliveryDate || "N/A",
-                processedData.offerDetails?.paymentTerms || "N/A",
-                processedData.offerNumber || "N/A",
-                processedData.offerDate || "N/A",
-                processedData.offerDetails?.totalQuantity || "N/A"
-            ],
-            [],
-            ["Products:"],
-            productHeaders
-        ];
+    const values = [
+        subHeaderRow,
+        [
+            processedData.supplier?.name || "N/A",
+            processedData.offerDetails?.currency || "N/A",
+            processedData.offerDetails?.deliveryTerms || "N/A",
+            processedData.offerDetails?.deliveryDate || "N/A",
+            processedData.offerDetails?.paymentTerms || "N/A",
+            processedData.offerNumber || "N/A",
+            processedData.offerDate || "N/A",
+            processedData.offerDetails?.totalQuantity || "N/A"
+        ],
+        [],
+        productHeaders
+    ];
 
-        if (processedData.products && Array.isArray(processedData.products)) {
-            processedData.products.forEach((product) => {
-                values.push([
-                    product.material || "N/A",
-                    product.thickness || "N/A",
-                    product.width || "N/A",
-                    product.grade || "N/A",
-                    product.surface || "N/A",
-                    product.paintCoating || "N/A",
-                    product.manufacturer || "N/A",
-                    product.price || "N/A",
-                ]);
-            });
-        } else {
-            logger.warn(`No product data found for email ${emailId}`);
-        }
+    if (processedData.products && Array.isArray(processedData.products)) {
+        processedData.products.forEach((product) => {
+            values.push([
+                product.material || "N/A",
+                product.thickness || "N/A",
+                product.width || "N/A",
+                product.grade || "N/A",
+                product.surface || "N/A",
+                product.paintCoating || "N/A",
+                product.manufacturer || "N/A",
+                product.price || "N/A",
+            ]);
+        });
+    } else {
+        logger.warn(`No product data found for email ${emailId}`);
+    }
 
         // Insert data
         const updateResult = await retryOperation(() => sheets.spreadsheets.values.update({
@@ -214,41 +211,90 @@ async function createSheetAndInsertData(emailDir) {
         }
 
         // Apply formatting
+        // const formatRequests = [
+        //     // Sub-header formatting
+        //     {
+        //         repeatCell: {
+        //             range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1},
+        //             cell: {
+        //                 userEnteredFormat: {
+        //                     backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
+        //                     textFormat: {bold: true},
+        //                     horizontalAlignment: "CENTER",
+        //                     verticalAlignment: "MIDDLE"
+        //                 }
+        //             },
+        //             fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+        //         }
+        //     },
+        //     // Product header formatting
+        //     {
+        //         repeatCell: {
+        //             range: {sheetId: newSheetId, startRowIndex: 3, endRowIndex: 4},
+        //             cell: {
+        //                 userEnteredFormat: {
+        //                     backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
+        //                     textFormat: {bold: true},
+        //                     horizontalAlignment: "CENTER",
+        //                     verticalAlignment: "MIDDLE"
+        //                 }
+        //             },
+        //             fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+        //         }
+        //     },
+        //     // Alternate row coloring (only for the product data)
+        //     {
+        //         addConditionalFormatRule: {
+        //             rule: {
+        //                 ranges: [{sheetId: newSheetId, startRowIndex: 4}],
+        //                 booleanRule: {
+        //                     condition: {type: "CUSTOM_FORMULA", values: [{userEnteredValue: "=MOD(ROW(),2)=0"}]},
+        //                     format: {backgroundColor: {red: 0.9, green: 0.95, blue: 1}} // Very light blue
+        //                 }
+        //             },
+        //             index: 0
+        //         }
+        //     },
+        //     // Add borders
+        //     {
+        //         updateBorders: {
+        //             range: {
+        //                 sheetId: newSheetId,
+        //                 startRowIndex: 0,
+        //                 endRowIndex: values.length,
+        //                 startColumnIndex: 0,
+        //                 endColumnIndex: 8
+        //             },
+        //             top: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+        //             bottom: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+        //             left: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+        //             right: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
+        //             innerHorizontal: {style: "SOLID", color: {red: 0.6, green: 0.6, blue: 0.6}},
+        //             innerVertical: {style: "SOLID", color: {red: 0.6, green: 0.6, blue: 0.6}}
+        //         }
+        //     },
+        //     // Enable text wrapping for all cells
+        //     {
+        //         repeatCell: {
+        //             range: {sheetId: newSheetId},
+        //             cell: {
+        //                 userEnteredFormat: {
+        //                     wrapStrategy: "WRAP"
+        //                 }
+        //             },
+        //             fields: "userEnteredFormat.wrapStrategy"
+        //         }
+        //     }
+        // ];
+
         const formatRequests = [
-            // Main header formatting
-            {
-                mergeCells: {
-                    range: {
-                        sheetId: newSheetId,
-                        startRowIndex: 0,
-                        endRowIndex: 1,
-                        startColumnIndex: 0,
-                        endColumnIndex: 8
-                    },
-                    mergeType: "MERGE_ALL"
-                }
-            },
+            // Sub-header formatting
             {
                 repeatCell: {
                     range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1},
                     cell: {
                         userEnteredFormat: {
-                            backgroundColor: {red: 0.2, green: 0.6, blue: 0.8},
-                            textFormat: {bold: true, foregroundColor: {red: 1, green: 1, blue: 1}, fontSize: 14},
-                            horizontalAlignment: "CENTER",
-                            verticalAlignment: "MIDDLE"
-                        }
-                    },
-                    fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
-                }
-            },
-            // Sub-header formatting
-            {
-                repeatCell: {
-                    range: {sheetId: newSheetId, startRowIndex: 1, endRowIndex: 2},
-                    cell: {
-                        userEnteredFormat: {
-                            backgroundColor: {red: 0.9, green: 0.9, blue: 0.9},
+                            backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
                             textFormat: {bold: true},
                             horizontalAlignment: "CENTER",
                             verticalAlignment: "MIDDLE"
@@ -260,10 +306,10 @@ async function createSheetAndInsertData(emailDir) {
             // Product header formatting
             {
                 repeatCell: {
-                    range: {sheetId: newSheetId, startRowIndex: 5, endRowIndex: 6},
+                    range: {sheetId: newSheetId, startRowIndex: 3, endRowIndex: 4},
                     cell: {
                         userEnteredFormat: {
-                            backgroundColor: {red: 0.8, green: 0.8, blue: 0.8},
+                            backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
                             textFormat: {bold: true},
                             horizontalAlignment: "CENTER",
                             verticalAlignment: "MIDDLE"
@@ -272,14 +318,19 @@ async function createSheetAndInsertData(emailDir) {
                     fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
                 }
             },
-            // Alternate row coloring
+            // Alternate row coloring (only for the product data table)
             {
                 addConditionalFormatRule: {
                     rule: {
-                        ranges: [{sheetId: newSheetId, startRowIndex: 6}],
+                        ranges: [{
+                            sheetId: newSheetId,
+                            startRowIndex: 4,
+                            startColumnIndex: 0,
+                            endColumnIndex: 8
+                        }],
                         booleanRule: {
                             condition: {type: "CUSTOM_FORMULA", values: [{userEnteredValue: "=MOD(ROW(),2)=0"}]},
-                            format: {backgroundColor: {red: 0.95, green: 0.95, blue: 0.95}}
+                            format: {backgroundColor: {red: 0.9, green: 0.95, blue: 1}} // Very light blue
                         }
                     },
                     index: 0
