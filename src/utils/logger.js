@@ -5,15 +5,6 @@ const chalk = require('chalk');
 const DEFAULT_LOG_LEVEL = 'debug';
 const TIME_ZONE = 'Europe/Warsaw';
 const DATE_FORMAT = 'en-GB';
-const CONSOLE_COLOR_MAP = {
-    info: chalk.green,
-    warn: chalk.yellow,
-    error: chalk.red,
-    debug: chalk.blue,
-    http: chalk.cyan,
-    verbose: chalk.magenta,
-    silly: chalk.grey
-};
 
 // Wymuszenie kolorów
 chalk.level = 3;
@@ -51,9 +42,15 @@ const fileTransport = (filename, level = 'debug') => new winston.transports.File
 });
 
 const consoleFormat = winston.format.printf(({level, message, timestamp, label, filename}) => {
-    
-    const colorizerFn = CONSOLE_COLOR_MAP[level] ?? chalk.white;
-    const colorizedLevel = colorizerFn(level);
+    const colorizedLevel =
+        level === 'info' ? chalk.green(level) :
+            level === 'warn' ? chalk.yellow(level) :
+                level === 'error' ? chalk.red(level) :
+                    level === 'debug' ? chalk.blue(level) :
+                        level === 'http' ? chalk.cyan(level) :
+                            level === 'verbose' ? chalk.magenta(level) :
+                                level === 'silly' ? chalk.grey(level) :
+                                    chalk.white(level);
 
     const colorizedTimestamp = chalk.gray(timestamp);
     const colorizedLabel = chalk.hex('#FFA500')(label); // Orange
