@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs').promises;
+const fsExtra = require('fs-extra');
 const {google} = require('googleapis');
 const express = require('express');
 const {createLogger} = require('../utils/logger');
@@ -30,7 +31,7 @@ async function ensureDirectoryExists(dirPath) {
 
 async function saveToken(tokens) {
     try {
-        await ensureDirectoryExists(path.dirname(TOKEN_PATH));
+        fsExtra.ensureDir(TOKEN_PATH);
         await fs.writeFile(TOKEN_PATH, JSON.stringify(tokens));
         logger.info(`Token saved to file: ${TOKEN_PATH}`);
     } catch (error) {
