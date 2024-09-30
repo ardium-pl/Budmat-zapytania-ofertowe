@@ -19,16 +19,6 @@ const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
 
 let oAuth2Client;
 
-async function ensureDirectoryExists(dirPath) {
-    try {
-        await fs.mkdir(dirPath, {recursive: true});
-        logger.info(`Directory ${dirPath} has been created or already exists`);
-    } catch (error) {
-        logger.error(`Error creating directory ${dirPath}:`, error);
-
-    }
-}
-
 async function saveToken(tokens) {
     try {
         fsExtra.ensureDir(TOKEN_PATH);
