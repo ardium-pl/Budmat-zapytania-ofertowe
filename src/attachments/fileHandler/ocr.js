@@ -1,6 +1,6 @@
 const vision = require("@google-cloud/vision");
 const dotenv = require("dotenv");
-const fs = require("fs-extra");
+const fs = require("fs");
 const path = require("path");
 const {convertPdfToImages} = require("../../utils/convertPdfToImage.js");
 const {deleteFile} = require("../../utils/deleteFile.js");
@@ -21,9 +21,12 @@ async function pdfOCR(pdfFilePath) {
     const inputPdfFolder = path.join(DATA_DIR, "attachments");
     const imagesFolder = path.join(DATA_DIR, "images");
     const outputTextFolder = path.join(DATA_DIR, "processed_attachments/pdf");
+    const fileBaseName = path.basename(pdfFilePath, ".pdf");
 
     [inputPdfFolder, imagesFolder, outputTextFolder].forEach((folder) => {
-        fs.ensureDir(folder);
+        if (!fs.existsSync(folder)) {
+            fs.mkdirSync(folder, {recursive: true});
+        }
     });
 
     try {
