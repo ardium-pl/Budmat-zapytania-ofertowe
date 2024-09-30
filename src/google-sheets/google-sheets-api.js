@@ -294,7 +294,7 @@ async function createSheetAndInsertData(emailDir) {
                     range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, endColumnIndex: 8},
                     cell: {
                         userEnteredFormat: {
-                            backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
+                            backgroundColor: {red: 0.6235, green: 0.7725, blue: 0.9098}, // Light blue
                             textFormat: {bold: true},
                             horizontalAlignment: "CENTER",
                             verticalAlignment: "MIDDLE"
@@ -309,7 +309,7 @@ async function createSheetAndInsertData(emailDir) {
                     range: {sheetId: newSheetId, startRowIndex: 3, endRowIndex: 4, endColumnIndex: 8},
                     cell: {
                         userEnteredFormat: {
-                            backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
+                            backgroundColor: {red: 0.6235, green: 0.7725, blue: 0.9098}, // Light blue
                             textFormat: {bold: true},
                             horizontalAlignment: "CENTER",
                             verticalAlignment: "MIDDLE"
