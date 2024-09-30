@@ -7,7 +7,7 @@ const logger = createLogger(__filename);
 async function processPDF(filePath) {
     try {
         const data = await pdfExtract.extract(filePath, {});
-        let result = {
+        const result = {
             pageCount: data.pages.length,
             pages: []
         };
@@ -73,10 +73,6 @@ function extractTables(content) {
 function isLikelyTableRow(content, item) {
     const sameYItems = content.filter(i => Math.abs(i.y - item.y) < 2);
     return sameYItems.length >= 3;  // Consider it a table row if it has at least 3 elements in the same line
-}
-
-function formatTable(table) {
-    return table.map(row => row.join(' | ')).join('\n');
 }
 
 function extractTextContent(content) {
