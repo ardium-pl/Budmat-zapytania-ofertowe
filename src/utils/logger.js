@@ -59,6 +59,7 @@ const consoleFormat = winston.format.printf(({level, message, timestamp, label, 
     return `${colorizedTimestamp} [${colorizedLevel}] [${colorizedLabel}] [${colorizedFilename}]: ${message}`;
 });
 
+
 const consoleTransport = new winston.transports.Console({
     format: winston.format.combine(
         winston.format.colorize(),
