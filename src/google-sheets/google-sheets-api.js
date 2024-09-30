@@ -291,7 +291,7 @@ async function createSheetAndInsertData(emailDir) {
             // Sub-header formatting
             {
                 repeatCell: {
-                    range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1},
+                    range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, endColumnIndex: 8},
                     cell: {
                         userEnteredFormat: {
                             backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
@@ -306,7 +306,7 @@ async function createSheetAndInsertData(emailDir) {
             // Product header formatting
             {
                 repeatCell: {
-                    range: {sheetId: newSheetId, startRowIndex: 3, endRowIndex: 4},
+                    range: {sheetId: newSheetId, startRowIndex: 3, endRowIndex: 4, endColumnIndex: 8},
                     cell: {
                         userEnteredFormat: {
                             backgroundColor: {red: 0.8, green: 0.9, blue: 1}, // Light blue
