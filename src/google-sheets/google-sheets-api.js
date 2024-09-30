@@ -326,6 +326,7 @@ async function createSheetAndInsertData(emailDir) {
                             sheetId: newSheetId,
                             startRowIndex: 4,
                             startColumnIndex: 0,
+                            endRowIndex: values.length,
                             endColumnIndex: 8
                         }],
                         booleanRule: {
