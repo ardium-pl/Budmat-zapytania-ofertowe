@@ -11,6 +11,7 @@ const {SPREADSHEET_ID, TEMPLATE_SHEET_ID} = process.env;
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
+const LAST_COLUMN = 8;
 
 async function createUniqueSheetName(sheets, baseName) {
     let sheetName = baseName || "New Sheet";
@@ -291,7 +292,7 @@ async function createSheetAndInsertData(emailDir) {
             // Sub-header formatting
             {
                 repeatCell: {
-                    range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, endColumnIndex: 8},
+                    range: {sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1, endColumnIndex: LAST_COLUMN},
                     cell: {
                         userEnteredFormat: {
                             backgroundColor: {red: 0.6235, green: 0.7725, blue: 0.9098}, // Light blue
@@ -306,7 +307,7 @@ async function createSheetAndInsertData(emailDir) {
             // Product header formatting
             {
                 repeatCell: {
-                    range: {sheetId: newSheetId, startRowIndex: 3, endRowIndex: 4, endColumnIndex: 8},
+                    range: {sheetId: newSheetId, startRowIndex: 3, endRowIndex: 4, endColumnIndex: LAST_COLUMN},
                     cell: {
                         userEnteredFormat: {
                             backgroundColor: {red: 0.6235, green: 0.7725, blue: 0.9098}, // Light blue
@@ -327,7 +328,7 @@ async function createSheetAndInsertData(emailDir) {
                             startRowIndex: 4,
                             startColumnIndex: 0,
                             endRowIndex: values.length,
-                            endColumnIndex: 8
+                            endColumnIndex: LAST_COLUMN
                         }],
                         booleanRule: {
                             condition: {type: "CUSTOM_FORMULA", values: [{userEnteredValue: "=MOD(ROW(),2)=0"}]},
@@ -345,7 +346,7 @@ async function createSheetAndInsertData(emailDir) {
                         startRowIndex: 0,
                         endRowIndex: values.length,
                         startColumnIndex: 0,
-                        endColumnIndex: 8
+                        endColumnIndex: LAST_COLUMN
                     },
                     top: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
                     bottom: {style: "SOLID", width: 2, color: {red: 0.2, green: 0.2, blue: 0.2}},
@@ -389,7 +390,7 @@ async function createSheetAndInsertData(emailDir) {
                             sheetId: newSheetId,
                             dimension: "COLUMNS",
                             startIndex: 0,
-                            endIndex: 8
+                            endIndex: LAST_COLUMN
                         }
                     }
                 }]
