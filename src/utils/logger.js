@@ -51,7 +51,7 @@ const fileTransport = (filename, level = 'debug') => new winston.transports.File
 });
 
 const consoleFormat = winston.format.printf(({level, message, timestamp, label, filename}) => {
-
+    
     const colorizerFn = CONSOLE_COLOR_MAP[level] ?? chalk.white;
     const colorizedLevel = colorizerFn(level);
 
