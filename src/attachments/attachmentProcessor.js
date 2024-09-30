@@ -24,7 +24,6 @@ const fileProcessors = {
 async function processAttachment(filePath, extension) {
     const fileName = path.basename(filePath);
     const emailDir = path.dirname(filePath);
-    let processedContent = '';
 
     const processor = fileProcessors[extension.toLowerCase()];
 

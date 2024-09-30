@@ -7,7 +7,7 @@ const logger = createLogger(__filename);
 async function processPDF(filePath) {
     try {
         const data = await pdfExtract.extract(filePath, {});
-        let result = {
+        const result = {
             pageCount: data.pages.length,
             pages: []
         };
