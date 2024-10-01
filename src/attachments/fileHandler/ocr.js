@@ -38,10 +38,12 @@ async function pdfOCR(pdfFilePath) {
 
     let concatenatedResults = "";
     for (const imageFilePath of imageFilePaths) {
-      const ocrResults = await fileOcr(imageFilePath, outputTextFolder);
-      concatenatedResults += ocrResults
-        .map((result) => result.googleVisionText)
-        .join("\n");
+      const ocrResult = await fileOcr(imageFilePath, outputTextFolder);
+      if (ocrResult) {
+        concatenatedResults += ocrResult.googleVisionText + "\n";
+      } else {
+        logger.warn(`No text found in image: ${imageFilePath}`);
+      }
     }
 
     await _saveDataToTxt(
@@ -57,7 +59,7 @@ async function pdfOCR(pdfFilePath) {
     // Delete the image files after processing
     for (const imageFilePath of imageFilePaths) {
       logger.warn(`Deleting temporary image: ${imageFilePath}`);
-      await deleteFile(imageFilePath)
+      await deleteFile(imageFilePath);
     }
 
     return concatenatedResults;
@@ -80,25 +82,25 @@ async function _saveDataToTxt(folder, fileNameWithoutExt, text) {
 
 async function fileOcr(imageFilePath) {
   const client = new vision.ImageAnnotatorClient(VISION_AUTH);
-  const results = [];
 
   logger.info(` 🕶️ Processing image with Google Vision: ${imageFilePath}`);
   try {
     const [result] = await client.documentTextDetection(imageFilePath);
 
     // Getting text from the image
-    let googleVisionText = "";
-    if (result.fullTextAnnotation) {
-      googleVisionText = result.fullTextAnnotation.text + "\n";
-      results.push({ googleVisionText });
+    if (!result.fullTextAnnotation) {
+      return null;
     }
 
     logger.info(` 💚 Successfully processed image ${imageFilePath}`);
+    const googleVisionText = result.fullTextAnnotation.text + "\n";
+    return { googleVisionText };
   } catch (err) {
     logger.error(`Error during Google Vision OCR processing: ${err.message}`);
+    // Instead of throwing an error, we'll just log it and continue
   }
 
-  return results;
+  return null;
 }
 
 module.exports = { pdfOCR, fileOcr };

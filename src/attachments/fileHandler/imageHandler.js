@@ -8,9 +8,7 @@ async function processImage(filePath) {
         const metadata = await sharp(filePath).metadata();
         const ocrData = await fileOcr(filePath);
 
-        const ocrContent = ocrData
-            .map((item) => item.googleVisionText || "")
-            .join("\n");
+        const ocrContent = ocrData ? ocrData.googleVisionText : "";
 
         const result = {
             metadata: metadata,
