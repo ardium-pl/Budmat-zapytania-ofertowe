@@ -288,40 +288,92 @@ async function saveEmailContent(emailContent, emailDir) {
 
 async function processEmailAttachments(connection, message, emailDir) {
     const parts = imaps.getParts(message.attributes.struct);
-    const attachmentResults = [];
+    return Promise.all(parts.map(part => processAttachmentPart(connection, message, part, emailDir)));
+}
 
-    for (const part of parts) {
-        if (part.disposition && part.disposition.type.toUpperCase() === 'ATTACHMENT') {
-            const filename = decodeFilename(part.disposition.params.filename);
-            const mimeType = part.type;
-            const extension = getFileExtension(filename);
-
-            if (isAllowedFileType(filename, mimeType)) {
-                try {
-                    const partData = await connection.getPartData(message, part);
-                    const filePath = path.join(emailDir, filename);
-                    await fs.writeFile(filePath, partData);
-
-                    const processPromise = processAttachment(filePath, extension).then(processedFilePath => {
-                        logger.info(`Processed attachment: ${filename}`);
-                        return {filename, originalPath: filePath, processedPath: processedFilePath};
-                    }).catch(err => {
-                        logger.error(`Error processing attachment ${filename}:`, err);
-                        return {filename, originalPath: filePath, error: err.message};
-                    });
-
-                    attachmentResults.push({filename, processPromise});
-                } catch (err) {
-                    logger.error('Error saving attachment:', filename, err);
-                }
-            } else {
-                logger.warn(`Skipped disallowed attachment: ${filename}`);
-            }
-        }
+async function processAttachmentPart(connection, message, part, emailDir) {
+    if (!isAttachmentPart(part)) {
+        return null;
     }
 
-    return attachmentResults;
+    const filename = decodeFilename(part.disposition.params.filename);
+    const mimeType = part.type;
+    const extension = getFileExtension(filename);
+
+    if (!isAllowedFileType(filename, mimeType)) {
+        logger.warn("Skipped disallowed attachment:", filename);
+        return null;
+    }
+
+    return saveAndProcessAttachment(connection, message, part, filename, extension, emailDir);
 }
+
+function isAttachmentPart(part) {
+    return part.disposition && part.disposition.type.toUpperCase() === 'ATTACHMENT';
+}
+
+async function saveAndProcessAttachment(connection, message, part, filename, extension, emailDir) {
+    try {
+        const partData = await connection.getPartData(message, part);
+        const filePath = path.join(emailDir, filename);
+        await fs.writeFile(filePath, partData);
+
+        const processPromise = processAttachment(filePath, extension)
+            .then(processedFilePath => {
+                logger.info(`Processed attachment: ${filename}`);
+                return { filename, originalPath: filePath, processedPath: processedFilePath };
+            })
+            .catch(err => {
+                logger.error(`Error processing attachment ${filename}:`, err);
+                return { filename, originalPath: filePath, error: err.message };
+            });
+
+        return { filename, processPromise };
+    } catch (err) {
+        logger.error('Error saving attachment:', filename, err);
+        return null;
+    }
+}
+
+
+
+//
+// async function processEmailAttachments(connection, message, emailDir) {
+//     const parts = imaps.getParts(message.attributes.struct);
+//     const attachmentResults = [];
+//
+//     for (const part of parts) {
+//         if (part.disposition && part.disposition.type.toUpperCase() === 'ATTACHMENT') {
+//             const filename = decodeFilename(part.disposition.params.filename);
+//             const mimeType = part.type;
+//             const extension = getFileExtension(filename);
+//
+//             if (isAllowedFileType(filename, mimeType)) {
+//                 try {
+//                     const partData = await connection.getPartData(message, part);
+//                     const filePath = path.join(emailDir, filename);
+//                     await fs.writeFile(filePath, partData);
+//
+//                     const processPromise = processAttachment(filePath, extension).then(processedFilePath => {
+//                         logger.info(`Processed attachment: ${filename}`);
+//                         return {filename, originalPath: filePath, processedPath: processedFilePath};
+//                     }).catch(err => {
+//                         logger.error(`Error processing attachment ${filename}:`, err);
+//                         return {filename, originalPath: filePath, error: err.message};
+//                     });
+//
+//                     attachmentResults.push({filename, processPromise});
+//                 } catch (err) {
+//                     logger.error('Error saving attachment:', filename, err);
+//                 }
+//             } else {
+//                 logger.warn(`Skipped disallowed attachment: ${filename}`);
+//             }
+//         }
+//     }
+//
+//     return attachmentResults;
+// }
 
 async function createMetadataFile(emailDir, emailContent, attachmentResults) {
     const metadata = {
