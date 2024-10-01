@@ -21,6 +21,7 @@ async function pdfOCR(pdfFilePath) {
   const inputPdfFolder = path.join(DATA_DIR, "attachments");
   const imagesFolder = path.join(DATA_DIR, "images");
   const outputTextFolder = path.join(DATA_DIR, "processed_attachments/pdf");
+  const fileNameWithoutExt = path.basename(pdfFilePath, ".pdf");
 
   await Promise.all(
     [inputPdfFolder, imagesFolder, outputTextFolder].map(fs.ensureDir)
@@ -35,7 +36,6 @@ async function pdfOCR(pdfFilePath) {
       return [];
     }
 
-    // Concatenate all OCR results directly
     let concatenatedResults = "";
     for (const imageFilePath of imageFilePaths) {
       const ocrResults = await fileOcr(imageFilePath, outputTextFolder);
@@ -44,14 +44,11 @@ async function pdfOCR(pdfFilePath) {
         .join("\n");
     }
 
-    // Save the concatenated OCR result to a single text file
-    const savePdfData = (folder, text) => {
-      const fileNameWithoutExt = path.basename(pdfFilePath, ".pdf");
-      const textPath = path.join(folder, `${fileNameWithoutExt}.txt`);
-      fs.writeFileSync(textPath, text, "utf8");
-    };
-
-    savePdfData(outputTextFolder, concatenatedResults);
+    await _saveDataToTxt(
+      outputTextFolder,
+      fileNameWithoutExt,
+      concatenatedResults
+    );
 
     logger.info(
       ` 💚 Successfully processed and saved the OCR results for ${pdfFilePath}`
@@ -60,13 +57,24 @@ async function pdfOCR(pdfFilePath) {
     // Delete the image files after processing
     for (const imageFilePath of imageFilePaths) {
       logger.warn(`Deleting temporary image: ${imageFilePath}`);
-      await deleteFile(imageFilePath); // Ensure you await the deletion process
+      await deleteFile(imageFilePath)
     }
 
     return concatenatedResults;
   } catch (err) {
     logger.error(`Error processing ${pdfFilePath}:`, err);
-    return ""; // Return an empty string instead of undefined to prevent container shutdown
+    return "";
+  }
+}
+
+async function _saveDataToTxt(folder, fileNameWithoutExt, text) {
+  const textPath = path.join(folder, `${fileNameWithoutExt}.txt`);
+
+  try {
+    await fs.writeFile(textPath, text, "utf8");
+    logger.info(` 💚 Successfully saved the text file at: ${textPath}`);
+  } catch (err) {
+    logger.error(`Error saving the text file: ${err.message}`);
   }
 }
 
@@ -88,7 +96,6 @@ async function fileOcr(imageFilePath) {
     logger.info(` 💚 Successfully processed image ${imageFilePath}`);
   } catch (err) {
     logger.error(`Error during Google Vision OCR processing: ${err.message}`);
-    // Instead of throwing an error, we'll just log it and continue
   }
 
   return results;
