@@ -7,7 +7,7 @@ const logger = createLogger(__filename);
 dotenv.config();
 
 const GOOGLE_SHEETS_ACCOUNT = JSON.parse(process.env.GOOGLE_SHEETS_ACCOUNT);
-const {SPREADSHEET_ID, TEMPLATE_SHEET_ID} = process.env;
+const {SPREADSHEET_ID} = process.env;
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
