@@ -6,13 +6,13 @@ const express = require('express');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 
-// Define the base path to the volume
-const VOLUME_PATH = '/app/processed_attachments';
+// // Define the base path to the volume
+// const VOLUME_PATH = '/app/processed_attachments';
+//
+// // Ensure we're using only one level of 'processed_attachments'
+// const TOKEN_PATH = path.join(VOLUME_PATH, 'token.json');
 
-// Ensure we're using only one level of 'processed_attachments'
-const TOKEN_PATH = path.join(VOLUME_PATH, 'token.json');
-
-// const TOKEN_PATH = path.join(__dirname, '../../token.json');
+const TOKEN_PATH = path.join(__dirname, '../../token.json');
 
 const SCOPES = ['https://mail.google.com/'];
 const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
@@ -32,7 +32,7 @@ async function saveToken(tokens) {
 
 async function authorize(credentials) {
     const {client_secret, client_id, redirect_uris} = credentials;
-    oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+    oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
 
     logger.info(`Attempting to read token from file: ${TOKEN_PATH}`);
 
@@ -120,8 +120,10 @@ function getNewToken(oAuth2Client) {
         const authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: SCOPES,
-            prompt: 'consent'  // Force consent prompt, which should always return a refresh token
+            redirect_uri: 'http://localhost:3000/auth/google/callback',
+            prompt: 'consent'
         });
+
 
         logger.info(`Server listening on port: ${port}`);
         logger.info('Application URL: ' + authUrl);
