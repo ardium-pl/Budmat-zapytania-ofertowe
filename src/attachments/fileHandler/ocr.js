@@ -35,16 +35,14 @@ async function pdfOCR(pdfFilePath) {
       return [];
     }
 
-    const allResults = [];
+    // Concatenate all OCR results directly
+    let concatenatedResults = "";
     for (const imageFilePath of imageFilePaths) {
       const ocrResults = await fileOcr(imageFilePath, outputTextFolder);
-      allResults.push(...ocrResults); // Append each image's OCR result
+      concatenatedResults += ocrResults
+        .map((result) => result.googleVisionText)
+        .join("\n");
     }
-
-    // Concatenate all OCR results into a single string
-    const concatenatedResults = allResults
-      .map((result) => result.googleVisionText)
-      .join("\n");
 
     // Save the concatenated OCR result to a single text file
     const savePdfData = (folder, text) => {
