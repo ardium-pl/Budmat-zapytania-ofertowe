@@ -32,7 +32,7 @@ async function saveToken(tokens) {
 
 async function authorize(credentials) {
     const {client_secret, client_id, redirect_uris} = credentials;
-    oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+    oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris);
 
     logger.info(`Attempting to read token from file: ${TOKEN_PATH}`);
 
