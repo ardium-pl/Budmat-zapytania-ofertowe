@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
+const axios = require('axios');
 
 async function processOfferData(emailDir) {
     const emailId = path.basename(emailDir).replace('email_', '');
@@ -34,6 +35,10 @@ async function processOfferData(emailDir) {
             definitions: false  // Do not include definitions
         });
 
+                // Example external API endpoint URL
+        const apiEndpoint = "http://localhost:5050/api/json-schema";
+
+        
         // Manually construct response_format
         const responseFormat = {
             type: 'json_schema',
@@ -45,14 +50,14 @@ async function processOfferData(emailDir) {
 
         // // Optional: Log the response_format for debugging
         // logger.debug(JSON.stringify(responseFormat, null, 2));
-
+        
         const completion = await client.beta.chat.completions.parse({
             model: "gpt-4o-2024-08-06",
             messages: [
                 {
                     role: "system",
                     content: `Jesteś asystentem specjalizującym się w analizie ofert handlowych i tworzeniu strukturyzowanych podsumowań. Obecna data to 24 września 2024.
-        
+                    
         Przestrzegaj następujących zasad przy tworzeniu podsumowania:
         1. Używaj tylko informacji explicite podanych w danych wejściowych.
         2. Dla brakujących danych:
@@ -62,8 +67,8 @@ async function processOfferData(emailDir) {
         4. Dla zakresów liczbowych (np. długość, grubość):
            - Użyj tablicy dwuelementowej [min, max] jeśli podano zakres np. min. 280 - max 300.
            - Użyj pojedynczej liczby, jeśli podano tylko jedną wartość np. 1240.
-        5. Upewnij się, że wszystkie dane numeryczne są zapisane jako liczby, nie stringi.
-        6. Jeżeli nie możesz łatwo znaleźć dostawcy, spróbuj znaleźć go z domenie mailowej.
+           5. Upewnij się, że wszystkie dane numeryczne są zapisane jako liczby, nie stringi.
+           6. Jeżeli nie możesz łatwo znaleźć dostawcy, spróbuj znaleźć go z domenie mailowej.
         7. Dla pól produktów:
            - surface: rodzaj powierzchni (np. "gładka", "ryflowana", albo klasyfikowana przez normy np. A, B, C)
            - nameOfProduct: nazwa produktu (np. "Blacha stalowa")
@@ -77,12 +82,12 @@ async function processOfferData(emailDir) {
            - price: cena danego produktu (jeśli podano).
            - quantity: ilość (jesli podano, nie mieszaj z innymi polami)
         8. Dla szczegółów oferty (offerDetails):
-           - currency: waluta oferty
+        - currency: waluta oferty
            - deliveryTerms: warunki dostawy (np. CIP Gdańsk, DDP Płock)
            - deliveryDate: termin dostawy (np. Sept/Oct, )
            - paymentTerms: termin płatności (np. "net cash. 60 days date of invoice")
         9. Nie dodawaj żadnych informacji, których nie ma w danych wejściowych - lepiej zostawić pole puste niż zgadywać.`
-                },
+    },
                 {
                     role: "user",
                     content: `Przeanalizuj poniższe dane oferty i utwórz podsumowanie:
@@ -95,20 +100,30 @@ async function processOfferData(emailDir) {
         ${JSON.stringify(validatedData.attachments || [], null, 2)}
         
         Utwórz strukturyzowane podsumowanie oferty zgodnie z podanym schematem, uwzględniając wszystkie dostępne informacje.`
-                }
-            ],
-            response_format: responseFormat, // Use manually constructed response_format
+    }
+],
+response_format: responseFormat, // Use manually constructed response_format
         });
 
         // Log token usage
         const tokenUsage = completion.usage;
         logger.warn(`Used ${tokenUsage.total_tokens} tokens. (Prompts: ${tokenUsage.prompt_tokens}, Response: ${tokenUsage.completion_tokens})`);
-
+        
         const message = completion.choices[0]?.message;
         if (message?.parsed) {
             // Additional data cleaning and validation
             const cleanedData = cleanAndValidateData(message.parsed);
-
+            
+            // Send POST request with jsonSchema to the external endpoint
+            const response = await axios.post(apiEndpoint, cleanedData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+             // Log response from the external server
+             logger.info(`POST request to ${apiEndpoint} successful: ${response.statusText}`);
+            
             // Save processed data
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
             await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
