@@ -100,6 +100,7 @@ gmail-extractor/
 ## Configuration
 
 ### JSON Schema
+```json
 {
   offerNumber: string;
   offerDate: string;
@@ -135,7 +136,7 @@ gmail-extractor/
     price: number;
   }>;
 };
-
+```
 
 
 ### Environment Variables
