@@ -102,40 +102,42 @@ gmail-extractor/
 ### JSON Schema
 ```json
 {
-  offerNumber: string;
-  offerDate: string;
-  customer: {
-    name: string;
-    location: string;
-  };
-  supplier: {
-    name: string;
-    contact: {
-      name: string;
-      email: string;
-      phone: string;
-    };
-  };
-  offerDetails: {
-    currency: string;
-    deliveryTerms: string;
-    deliveryDate: string;
-    paymentTerms: string;
-    totalQuantity: number;
-    periodOffered: string;
-  };
-  products: Array<{
-    itemNumber: string;
-    material: string;
-    grade: string;
-    surface: string;
-    thickness: number;
-    width: number;
-    length: number | null;
-    quantity: number | null;
-    price: number;
-  }>;
-};
+  "offerNumber": "string",
+  "offerDate": "string",
+  "customer": {
+    "name": "string",
+    "location": "string"
+  },
+  "supplier": {
+    "name": "string",
+    "contact": {
+      "name": "string",
+      "email": "string",
+      "phone": "string"
+    }
+  },
+  "offerDetails": {
+    "currency": "string",
+    "deliveryTerms": "string",
+    "deliveryDate": "string",
+    "paymentTerms": "string",
+    "totalQuantity": "number",
+    "periodOffered": "string"
+  },
+  "products": [
+    {
+      "itemNumber": "string",
+      "material": "string",
+      "grade": "string",
+      "surface": "string",
+      "thickness": "number",
+      "width": "number",
+      "length": "number|null",
+      "quantity": "number|null",
+      "price": "number"
+    }
+  ]
+}
 ```
 
 
