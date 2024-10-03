@@ -132,8 +132,8 @@ gmail-extractor/
       "surface": "string",
       "thickness": "number",
       "width": "number",
-      "length": "number|null",
-      "quantity": "number|null",
+      "length": "number",
+      "quantity": "number",
       "price": "number"
     }
   ]
