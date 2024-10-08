@@ -33,9 +33,6 @@ const ProductSchema = z.object({
     length: z.union([z.number(), z.array(z.number()).length(2)]).optional(),
     quantity: z.number().optional(),
     price: z.number().optional(),
-    // price: z.union([z.number(), z.object({ net: z.number(), gross: z.number() })]).optional(),
-    // netValue: z.number().optional(), // idk czy to chcecie czy nie, bo wiekszosc dokumentow nie ma tego podzialu
-    // grossValue: z.number().optional(),
 });
 
 // Schema for the overall output structure
