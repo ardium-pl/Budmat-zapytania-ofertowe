@@ -120,8 +120,10 @@ function getNewToken(oAuth2Client) {
         const authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: SCOPES,
-            prompt: 'consent'  // Force consent prompt, which should always return a refresh token
+            redirect_uri: 'http://localhost:3000/auth/google/callback',
+            prompt: 'consent'
         });
+
 
         logger.info(`Server listening on port: ${port}`);
         logger.info('Application URL: ' + authUrl);
