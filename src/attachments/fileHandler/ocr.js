@@ -88,7 +88,6 @@ async function fileOcr(imageFilePath) {
     const [result] = await client.documentTextDetection(imageFilePath);
 
     // Getting no text from the image
-
     if (!result.fullTextAnnotation) {
       return null;
     }
