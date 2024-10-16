@@ -110,157 +110,70 @@ function startWorker(emailDir, emailId) {
     logger.info(`Worker started for email ${emailId}`);
 }
 
-// // Task for worker threads
-// if (!isMainThread) {
-//     const {emailDir, emailId} = workerData;
-//
-//     async function processEmailWorker() {
-//         try {
-//             await waitForFile(path.join(emailDir, 'processing_complete'));
-//             await waitForFile(path.join(emailDir, 'all_present'));
-//             logger.info(`Processing offer data for email ${emailId}`);
-//
-//             let retries = 0;
-//             const maxRetries = 5;
-//             let delay = 1000;
-//
-//             while (retries < maxRetries) {
-//                 try {
-//                     const result = await processOfferData(emailDir);
-//                     if (result && !result.spam) {
-//                         logger.info(`Processed email ${emailId}`);
-//
-//                         const processedFilePath = path.join(emailDir, `processed_offer_${emailId}.json`);
-//
-//                         // Dodajemy krótkie opóźnienie po przetworzeniu oferty
-//                         await new Promise(resolve => setTimeout(resolve, 1000));
-//
-//                         if (await waitForFileWithRetry(processedFilePath, 10, 1000)) {
-//                             await createSheetAndInsertData(emailDir);
-//                             logger.info(`Inserted data to Google Sheets for email ${emailId}`);
-//
-//                             await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
-//                             logger.info(`Created sheets_processed flag for email ${emailId}`);
-//
-//                             if (await waitForFileWithRetry(path.join(emailDir, 'sheets_processed'), 5, 1000)) {
-//                                 await deleteEmailFolder(emailDir);
-//                                 logger.info(`Deleted email folder ${emailDir}`);
-//                             } else {
-//                                 logger.warn(`Sheets processed flag not created for email ${emailId}, skipping folder deletion`);
-//                             }
-//                         } else {
-//                             logger.error(`Processed file not found after multiple attempts: ${processedFilePath}`);
-//                         }
-//                         break;
-//                     } else if (result && result.spam) {
-//                         logger.info(`Email ${emailId} marked as spam, skipping further processing`);
-//                         await deleteEmailFolder(emailDir);
-//                         logger.info(`Deleted spam email folder ${emailDir}`);
-//                         break;
-//                     }
-//                 } catch (error) {
-//                     retries++;
-//                     logger.warn(`Error processing email ${emailId}. Retry ${retries}/${maxRetries}. Error: ${error.message}`);
-//                     if (retries < maxRetries) {
-//                         await new Promise(resolve => setTimeout(resolve, delay));
-//                         delay *= 2;
-//                     } else {
-//                         logger.error(`Failed to process email ${emailId} after ${maxRetries} attempts`);
-//                         break;
-//                     }
-//                 }
-//             }
-//         } catch (error) {
-//             logger.error(`Unexpected error processing email ${emailId}:`, error);
-//         } finally {
-//             parentPort.postMessage('done');
-//         }
-//     }
-//
-//     processEmailWorker();
-// }
-
-
 // Task for worker threads
 if (!isMainThread) {
     const {emailDir, emailId} = workerData;
 
     async function processEmailWorker() {
         try {
-            await waitForProcessingFiles(emailDir);
+            await waitForFile(path.join(emailDir, 'processing_complete'));
+            await waitForFile(path.join(emailDir, 'all_present'));
             logger.info(`Processing offer data for email ${emailId}`);
 
-            const result = await processOfferWithRetry(emailDir, emailId);
-            if (result) {
-                await handleProcessedResult(result, emailDir, emailId);
+            let retries = 0;
+            const maxRetries = 5;
+            let delay = 1000;
+
+            while (retries < maxRetries) {
+                try {
+                    const result = await processOfferData(emailDir);
+                    if (result && !result.spam) {
+                        logger.info(`Processed email ${emailId}`);
+
+                        const processedFilePath = path.join(emailDir, `processed_offer_${emailId}.json`);
+
+                        // Dodajemy krótkie opóźnienie po przetworzeniu oferty
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+
+                        if (await waitForFileWithRetry(processedFilePath, 10, 1000)) {
+                            await createSheetAndInsertData(emailDir);
+                            logger.info(`Inserted data to Google Sheets for email ${emailId}`);
+
+                            await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
+                            logger.info(`Created sheets_processed flag for email ${emailId}`);
+
+                            if (await waitForFileWithRetry(path.join(emailDir, 'sheets_processed'), 5, 1000)) {
+                                await deleteEmailFolder(emailDir);
+                                logger.info(`Deleted email folder ${emailDir}`);
+                            } else {
+                                logger.warn(`Sheets processed flag not created for email ${emailId}, skipping folder deletion`);
+                            }
+                        } else {
+                            logger.error(`Processed file not found after multiple attempts: ${processedFilePath}`);
+                        }
+                        break;
+                    } else if (result && result.spam) {
+                        logger.info(`Email ${emailId} marked as spam, skipping further processing`);
+                        await deleteEmailFolder(emailDir);
+                        logger.info(`Deleted spam email folder ${emailDir}`);
+                        break;
+                    }
+                } catch (error) {
+                    retries++;
+                    logger.warn(`Error processing email ${emailId}. Retry ${retries}/${maxRetries}. Error: ${error.message}`);
+                    if (retries < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2;
+                    } else {
+                        logger.error(`Failed to process email ${emailId} after ${maxRetries} attempts`);
+                        break;
+                    }
+                }
             }
         } catch (error) {
             logger.error(`Unexpected error processing email ${emailId}:`, error);
         } finally {
             parentPort.postMessage('done');
-        }
-    }
-
-    async function waitForProcessingFiles(emailDir) {
-        await waitForFile(path.join(emailDir, 'processing_complete'));
-        await waitForFile(path.join(emailDir, 'all_present'));
-    }
-
-    async function processOfferWithRetry(emailDir, emailId) {
-        let retries = 0;
-        const maxRetries = 5;
-        let delay = 1000;
-
-        while (retries < maxRetries) {
-            try {
-                return await processOfferData(emailDir);
-            } catch (error) {
-                retries++;
-                logger.warn(`Error processing email ${emailId}. Retry ${retries}/${maxRetries}. Error: ${error.message}`);
-                if (retries < maxRetries) {
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    delay *= 2;
-                } else {
-                    logger.error(`Failed to process email ${emailId} after ${maxRetries} attempts`);
-                    return null;
-                }
-            }
-        }
-    }
-
-    async function handleProcessedResult(result, emailDir, emailId) {
-        if (result.spam) {
-            await handleSpamEmail(emailDir, emailId);
-        } else {
-            await handleValidEmail(emailDir, emailId);
-        }
-    }
-
-    async function handleSpamEmail(emailDir, emailId) {
-        logger.info(`Email ${emailId} marked as spam, skipping further processing`);
-        await deleteEmailFolder(emailDir);
-        logger.info(`Deleted spam email folder ${emailDir}`);
-    }
-
-    async function handleValidEmail(emailDir, emailId) {
-        const processedFilePath = path.join(emailDir, `processed_offer_${emailId}.json`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        if (await waitForFileWithRetry(processedFilePath, 10, 1000)) {
-            await createSheetAndInsertData(emailDir);
-            logger.info(`Inserted data to Google Sheets for email ${emailId}`);
-
-            await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
-            logger.info(`Created sheets_processed flag for email ${emailId}`);
-
-            if (await waitForFileWithRetry(path.join(emailDir, 'sheets_processed'), 5, 1000)) {
-                await deleteEmailFolder(emailDir);
-                logger.info(`Deleted email folder ${emailDir}`);
-            } else {
-                logger.warn(`Sheets processed flag not created for email ${emailId}, skipping folder deletion`);
-            }
-        } else {
-            logger.error(`Processed file not found after multiple attempts: ${processedFilePath}`);
         }
     }
 
@@ -372,56 +285,6 @@ async function saveEmailContent(emailContent, emailDir) {
     logger.info(`Email subject saved to ${subjectFilePath}`);
     logger.info(`Email body saved to ${bodyFilePath}`);
 }
-//
-// async function processEmailAttachments(connection, message, emailDir) {
-//     const parts = imaps.getParts(message.attributes.struct);
-//     return Promise.all(parts.map(part => processAttachmentPart(connection, message, part, emailDir)));
-// }
-//
-// async function processAttachmentPart(connection, message, part, emailDir) {
-//     if (!isAttachmentPart(part)) {
-//         return null;
-//     }
-//
-//     const filename = decodeFilename(part.disposition.params.filename);
-//     const mimeType = part.type;
-//     const extension = getFileExtension(filename);
-//
-//     if (!isAllowedFileType(filename, mimeType)) {
-//         logger.warn("Skipped disallowed attachment:", filename);
-//         return null;
-//     }
-//
-//     return saveAndProcessAttachment(connection, message, part, filename, extension, emailDir);
-// }
-//
-// function isAttachmentPart(part) {
-//     return part.disposition && part.disposition.type.toUpperCase() === 'ATTACHMENT';
-// }
-//
-// async function saveAndProcessAttachment(connection, message, part, filename, extension, emailDir) {
-//     try {
-//         const partData = await connection.getPartData(message, part);
-//         const filePath = path.join(emailDir, filename);
-//         await fs.writeFile(filePath, partData);
-//
-//         const processPromise = processAttachment(filePath, extension)
-//             .then(processedFilePath => {
-//                 logger.info(`Processed attachment: ${filename}`);
-//                 return { filename, originalPath: filePath, processedPath: processedFilePath };
-//             })
-//             .catch(err => {
-//                 logger.error(`Error processing attachment ${filename}:`, err);
-//                 return { filename, originalPath: filePath, error: err.message };
-//             });
-//
-//         return { filename, processPromise };
-//     } catch (err) {
-//         logger.error('Error saving attachment:', filename, err);
-//         return null;
-//     }
-// }
-
 
 async function processEmailAttachments(connection, message, emailDir) {
     const parts = imaps.getParts(message.attributes.struct);
