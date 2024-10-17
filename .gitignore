@@ -1,0 +1,8 @@
+/token.json
+.env
+token.json
+node_modules/
+credentials.json
+package-lock.json
+**/logs
+.idea
