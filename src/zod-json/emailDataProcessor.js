@@ -4,11 +4,13 @@ const {EmailDataSchema, OutputSchema} = require('./emailDataSchema');
 const fs = require('fs').promises;
 const path = require('path');
 const {createLogger} = require('../utils/logger');
+const axios = require('axios');
 const logger = createLogger(__filename);
 
 async function processOfferData(emailDir) {
     const emailId = path.basename(emailDir).replace('email_', '');
     const allJsonPath = path.join(emailDir, `all_${emailId}.json`);
+    const apiEndpoint = process.env.API_ENDPOINT;
 
     try {
         logger.debug(`Processing offer data for email ${emailId}`);
@@ -109,7 +111,14 @@ async function processOfferData(emailDir) {
             // Additional data cleaning and validation
             const cleanedData = cleanAndValidateData(message.parsed);
 
-            // Save processed data
+            const response = await axios.post(apiEndpoint, cleanedData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+             logger.info(`POST request to ${apiEndpoint} successful: ${response.statusText}`);
+
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
             await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
 
