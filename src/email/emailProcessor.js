@@ -314,41 +314,76 @@ async function _processEmailData(emailDir, emailId) {
 
     while (retries < maxRetries) {
         try {
-            return await processOfferData(emailDir);
+            const result = await processOfferData(emailDir);
+            logger.info(`Offer data processed for email ${emailId}`);
+
+            // Log the result of processOfferData
+            logger.debug(`processOfferData result: ${JSON.stringify(result)}`);
+
+            // Check if the processed file was created
+            const processedFilePath = path.join(emailDir, `processed_offer_${emailId}.json`);
+            const fileExists = await waitForFileWithRetry(processedFilePath, 10, 1000);
+            logger.info(`Processed file ${fileExists ? 'exists' : 'does not exist'}: ${processedFilePath}`);
+
+            if (!fileExists) {
+                logger.error('Processed file was not created');
+            }
+
+            return result;
         } catch (error) {
             retries++;
             logger.warn(`Error processing email ${emailId}. Retry ${retries}/${maxRetries}. Error: ${error.message}`);
+            logger.error(`Stack trace: ${error.stack}`);
             if (retries < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2;
             } else {
                 logger.error(`Failed to process email ${emailId} after ${maxRetries} attempts`);
-                throw error;
             }
         }
     }
 }
 
 async function _handleProcessedEmail(emailDir, emailId) {
-    logger.info(`Processed email ${emailId}`);
+    logger.info(`Handling processed email ${emailId}`);
     const processedFilePath = path.join(emailDir, `processed_offer_${emailId}.json`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    if (await waitForFileWithRetry(processedFilePath, 10, 1000)) {
-        await createSheetAndInsertData(emailDir);
-        logger.info(`Inserted data to Google Sheets for email ${emailId}`);
+    // Check if the file exists immediately
+    const fileExists = await waitForFileWithRetry(processedFilePath, 10, 1000);
+    logger.info(`Processed file ${fileExists ? 'exists' : 'does not exist'} immediately: ${processedFilePath}`);
 
-        await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
-        logger.info(`Created sheets_processed flag for email ${emailId}`);
 
-        if (await waitForFileWithRetry(path.join(emailDir, 'sheets_processed'), 5, 1000)) {
-            await deleteEmailFolder(emailDir);
-            logger.info(`Deleted email folder ${emailDir}`);
-        } else {
-            logger.warn(`Sheets processed flag not created for email ${emailId}, skipping folder deletion`);
+    if (fileExists) {
+        try {
+            const fileContent = await fs.readFile(processedFilePath, 'utf8');
+            logger.info(`Processed file content for email ${emailId}: ${fileContent.substring(0, 100)}...`);
+
+            await createSheetAndInsertData(emailDir);
+            logger.info(`Inserted data to Google Sheets for email ${emailId}`);
+
+            await fs.writeFile(path.join(emailDir, 'sheets_processed'), '');
+            logger.info(`Created sheets_processed flag for email ${emailId}`);
+
+            if (await waitForFileWithRetry(path.join(emailDir, 'sheets_processed'), 5, 1000)) {
+                await deleteEmailFolder(emailDir);
+                logger.info(`Deleted email folder ${emailDir}`);
+            } else {
+                logger.warn(`Sheets processed flag not created for email ${emailId}, skipping folder deletion`);
+            }
+        } catch (error) {
+            logger.error(`Error handling processed email ${emailId}:`, error);
+            logger.error(`Stack trace: ${error.stack}`);
         }
     } else {
-        logger.error(`Processed file not found after multiple attempts: ${processedFilePath}`);
+        logger.error(`Processed file not found: ${processedFilePath}`);
+        // Log directory contents
+        try {
+            const files = await fs.readdir(emailDir);
+            logger.info(`Directory contents of ${emailDir}:`, files);
+        } catch (error) {
+            logger.error(`Error reading directory ${emailDir}:`, error);
+            logger.error(`Stack trace: ${error.stack}`);
+        }
     }
 }
 
@@ -393,7 +428,6 @@ async function deleteEmailFolder(emailDir) {
         logger.info(`Successfully deleted email folder: ${emailDir}`);
     } catch (error) {
         logger.error(`Error deleting email folder ${emailDir}:`, error);
-        throw error;
     }
 }
 
