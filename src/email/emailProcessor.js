@@ -6,9 +6,12 @@ const {decodeFilename, isAllowedFileType, getFileExtension} = require('../utils/
 const {PROCESSED_DIR} = require('../../config/constants');
 const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
+const util = require('util');
 const {simpleParser} = require('mailparser');
 const {combineEmailData} = require("../utils/combineEmailData");
 const {processOfferData} = require("../zod-json/emailDataProcessor");
+const {z} = require("zod");
+
 const {Worker, isMainThread, parentPort, workerData} = require('worker_threads');
 const {createSheetAndInsertData} = require("../google-sheets/google-sheets-api");
 
@@ -232,6 +235,10 @@ async function processEmailAttachments(connection, message, emailDir) {
     return attachmentResults;
 }
 
+async function _waitForPreprocessingComplete(emailDir) {
+    await waitForFile(path.join(emailDir, 'preprocessing_complete'));
+}
+
 async function _processAttachment(connection, message, part, emailDir) {
     const filename = decodeFilename(part.disposition.params.filename);
     const mimeType = part.type;
@@ -273,6 +280,8 @@ if (!isMainThread) {
         try {
             await _waitForProcessingComplete(emailDir);
             await _waitForAllPresent(emailDir);
+            await _waitForPreprocessingComplete(emailDir);
+
 
             const result = await _processEmailData(emailDir, emailId);
 
