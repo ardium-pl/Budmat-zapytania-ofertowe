@@ -71,6 +71,7 @@ async function combineEmailData(emailDir) {
     } catch (err) {
         logger.error('Error combining email data:', err);
 
+
     }
 }
 

@@ -11,6 +11,7 @@ const {simpleParser} = require('mailparser');
 const {combineEmailData} = require("../utils/combineEmailData");
 const {processOfferData} = require("../zod-json/emailDataProcessor");
 const {z} = require("zod");
+
 const {Worker, isMainThread, parentPort, workerData} = require('worker_threads');
 const {createSheetAndInsertData} = require("../google-sheets/google-sheets-api");
 
@@ -280,6 +281,7 @@ if (!isMainThread) {
             await _waitForProcessingComplete(emailDir);
             await _waitForAllPresent(emailDir);
             await _waitForPreprocessingComplete(emailDir);
+
 
             const result = await _processEmailData(emailDir, emailId);
 
