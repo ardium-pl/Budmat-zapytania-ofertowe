@@ -70,6 +70,7 @@ async function combineEmailData(emailDir) {
         logger.info(`Created preprocessing complete flag for email ${emailId}`);
     } catch (err) {
         logger.error('Error combining email data:', err);
+
     }
 }
 
