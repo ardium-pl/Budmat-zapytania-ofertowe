@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const {createLogger} = require('../utils/logger');
 const axios = require('axios');
+
 const logger = createLogger(__filename);
 
 async function processOfferData(emailDir) {
@@ -111,13 +112,14 @@ async function processOfferData(emailDir) {
             // Additional data cleaning and validation
             const cleanedData = cleanAndValidateData(message.parsed);
 
+
             const response = await axios.post(apiEndpoint, cleanedData, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
             
-             logger.info(`POST request to ${apiEndpoint} successful: ${response.statusText}`);
+             logger.info(`POST request successful`);
 
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
             await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));

@@ -40,8 +40,9 @@ module.exports = {
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES
 };
-
+//
 // const path = require('path');
+//
 
 // const DATA_DIR = path.join(__dirname, '../data');
 // const PROCESSED_DIR = path.join(DATA_DIR, 'processed');
@@ -66,6 +67,7 @@ module.exports = {
 //     'text/csv',
 //     'image/png',
 //     'image/jpeg'];
+//
 
 // module.exports = {
 //     DATA_DIR,

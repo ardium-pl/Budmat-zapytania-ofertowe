@@ -66,8 +66,12 @@ async function combineEmailData(emailDir) {
         await fs.writeFile(allJsonPath, JSON.stringify(combinedData, null, 2), 'utf8');
 
         logger.info(`Combined data saved to ${allJsonPath}`);
+        await fs.writeFile(path.join(emailDir, 'preprocessing_complete'), '');
+        logger.info(`Created preprocessing complete flag for email ${emailId}`);
     } catch (err) {
         logger.error('Error combining email data:', err);
+
+
     }
 }
 
