@@ -118,8 +118,8 @@ async function processOfferData(emailDir) {
                     }
                 });
             }
-            catch{
-                logger.error("Request was not sent successfuly");
+            catch(error){
+                logger.error("Request was not sent successfuly: ", error);
             }
             
              logger.info(`POST request successful`);
