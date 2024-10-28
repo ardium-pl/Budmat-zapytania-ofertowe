@@ -161,49 +161,103 @@ async function createSheetAndInsertData(emailDir) {
         }
         const newSheetId = addSheetResponse.data.replies[0].addSheet.properties.sheetId;
 
-    // Prepare data for insertion
+    // Prepare data for insertion with proper type handling
     const subHeaderRow = ["Dostawca", "Waluta", "Warunki dostawy", "Data dostawy", "Warunki płatności", "Numer oferty", "Data oferty", "Całkowita ilość"];
     const productHeaders = ["Materiał", "Grubość (mm)", "Szerokość (mm)", "Gatunek", "Powierzchnia", "Powłoka malarska", "Producent", "Cena"];
 
-    const values = [
-        subHeaderRow,
-        [
-            processedData.supplier?.name || "N/A",
-            processedData.offerDetails?.currency || "N/A",
-            processedData.offerDetails?.deliveryTerms || "N/A",
-            processedData.offerDetails?.deliveryDate || "N/A",
-            processedData.offerDetails?.paymentTerms || "N/A",
-            processedData.offerNumber || "N/A",
-            processedData.offerDate || "N/A",
-            processedData.offerDetails?.totalQuantity || "N/A"
-        ],
-        [],
-        productHeaders
-    ];
+    // const values = [
+    //     subHeaderRow,
+    //     [
+    //         processedData.supplier?.name || "N/A",
+    //         processedData.offerDetails?.currency || "N/A",
+    //         processedData.offerDetails?.deliveryTerms || "N/A",
+    //         processedData.offerDetails?.deliveryDate || "N/A",
+    //         processedData.offerDetails?.paymentTerms || "N/A",
+    //         processedData.offerNumber || "N/A",
+    //         processedData.offerDate || "N/A",
+    //         processedData.offerDetails?.totalQuantity || "N/A"
+    //     ],
+    //     [],
+    //     productHeaders
+    // ];
 
-    if (processedData.products && Array.isArray(processedData.products)) {
-        processedData.products.forEach((product) => {
-            values.push([
-                product.material || "N/A",
-                product.thickness || "N/A",
-                product.width || "N/A",
-                product.grade || "N/A",
-                product.surface || "N/A",
-                product.paintCoating || "N/A",
-                product.manufacturer || "N/A",
-                product.price || "N/A",
-            ]);
-        });
-    } else {
-        logger.warn(`No product data found for email ${emailId}`);
-    }
+        const values = [
+            subHeaderRow,
+            [
+                String(processedData.supplier?.name || "N/A"),
+                String(processedData.offerDetails?.currency || "N/A"),
+                String(processedData.offerDetails?.deliveryTerms || "N/A"),
+                String(processedData.offerDetails?.deliveryDate || "N/A"),
+                String(processedData.offerDetails?.paymentTerms || "N/A"),
+                String(processedData.offerNumber || "N/A"),
+                String(processedData.offerDate || "N/A"),
+                String(processedData.offerDetails?.totalQuantity || "N/A")
+            ],
+            [],
+            productHeaders
+        ];
+
+    // if (processedData.products && Array.isArray(processedData.products)) {
+    //     processedData.products.forEach((product) => {
+    //         values.push([
+    //             product.material || "N/A",
+    //             product.thickness || "N/A",
+    //             product.width || "N/A",
+    //             product.grade || "N/A",
+    //             product.surface || "N/A",
+    //             product.paintCoating || "N/A",
+    //             product.manufacturer || "N/A",
+    //             product.price || "N/A",
+    //         ]);
+    //     });
+    // } else {
+    //     logger.warn(`No product data found for email ${emailId}`);
+    // }
+
+        if (processedData.products && Array.isArray(processedData.products)) {
+            processedData.products.forEach((product) => {
+                // Convert all values to strings to ensure consistent data type
+                values.push([
+                    String(product.material || "N/A"),
+                    String(product.thickness || "N/A"),
+                    String(product.width || "N/A"),
+                    String(product.grade || "N/A"),
+                    String(product.surface || "N/A"),
+                    String(product.paintCoating || "N/A"),
+                    String(product.manufacturer || "N/A"),
+                    String(product.price || "N/A"),
+                ]);
+            });
+        } else {
+            logger.warn(`No product data found for email ${emailId}`);
+        }
+
+        // Validate values before insertion
+        const validatedValues = values.map(row =>
+            row.map(cell => {
+                // Handle arrays or objects by converting them to strings
+                if (typeof cell === 'object' && cell !== null) {
+                    return JSON.stringify(cell);
+                }
+                // Convert null or undefined to "N/A"
+                if (cell === null || cell === undefined) {
+                    return "N/A";
+                }
+                // Convert numbers to strings
+                if (typeof cell === 'number') {
+                    return cell.toString();
+                }
+                // Return the cell value as is if it's already a string
+                return String(cell);
+            })
+        );
 
         // Insert data
         const updateResult = await retryOperation(() => sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
             range: `${sheetName}!A1`,
-            valueInputOption: "USER_ENTERED",
-            resource: {values},
+            valueInputOption: "RAW", // Changed from "USER_ENTERED" to "RAW" for more predictable behavior
+            resource: {values: validatedValues},
         }));
 
         if (updateResult.error) {

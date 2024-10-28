@@ -190,13 +190,13 @@ async function getEmailContent(message) {
         const parsedMail = await simpleParser(rawEmail);
 
         logger.debug('Email parsing completed', {
-            subject: parsedMail.subject,
+            subject: parsedMail.subject || 'No Subject',
             bodyLength: parsedMail.text ? parsedMail.text.length : 0,
             uid
         });
 
         return {
-            subject: parsedMail.subject,
+            subject: parsedMail.subject || 'No Subject',
             body: parsedMail.text
         };
     } catch (err) {
@@ -209,6 +209,12 @@ async function getEmailContent(message) {
 async function saveEmailContent(emailContent, emailDir) {
     const subjectFilePath = path.join(emailDir, 'email_subject.txt');
     const bodyFilePath = path.join(emailDir, 'email_body.txt');
+
+    // Check for undefined values
+    if (typeof emailContent.subject === 'undefined' || typeof emailContent.body === 'undefined') {
+        logger.error(`Email content is missing data: ${JSON.stringify(emailContent)}`);
+        throw new Error("Email content is missing required fields");
+    }
 
     await fs.writeFile(subjectFilePath, emailContent.subject, {encoding: 'utf8'});
     await fs.writeFile(bodyFilePath, emailContent.body, {encoding: 'utf8'});
@@ -282,6 +288,8 @@ if (!isMainThread) {
             await _waitForPreprocessingComplete(emailDir);
 
             const result = await _processEmailData(emailDir, emailId);
+
+            // await _handleProcessedEmail(emailDir, emailId);
 
             if (result && !result.spam) {
                 await _handleProcessedEmail(emailDir, emailId);
