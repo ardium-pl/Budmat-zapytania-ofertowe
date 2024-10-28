@@ -40,7 +40,7 @@ module.exports = {
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES
 };
-//
+
 // const path = require('path');
 //
 
@@ -68,7 +68,6 @@ module.exports = {
 //     'image/png',
 //     'image/jpeg'];
 //
-
 // module.exports = {
 //     DATA_DIR,
 //     PROCESSED_DIR,

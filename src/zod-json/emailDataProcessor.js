@@ -4,9 +4,9 @@ const {EmailDataSchema, OutputSchema} = require('./emailDataSchema');
 const fs = require('fs').promises;
 const path = require('path');
 const {createLogger} = require('../utils/logger');
+const logger = createLogger(__filename);
 const axios = require('axios');
 
-const logger = createLogger(__filename);
 
 async function processOfferData(emailDir) {
     const emailId = path.basename(emailDir).replace('email_', '');
@@ -111,16 +111,20 @@ async function processOfferData(emailDir) {
         if (message?.parsed) {
             // Additional data cleaning and validation
             const cleanedData = cleanAndValidateData(message.parsed);
-
-
-            const response = await axios.post(apiEndpoint, cleanedData, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            try{
+                await axios.post(apiEndpoint, cleanedData, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                logger.info(`POST request successful`);
+            }
+            catch(error){
+                logger.warn("Request was not sent successfuly: " +  error);
+            }
             
-             logger.info(`POST request successful`);
 
+            // Save processed data
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
             await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
 
