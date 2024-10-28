@@ -190,13 +190,13 @@ async function getEmailContent(message) {
         const parsedMail = await simpleParser(rawEmail);
 
         logger.debug('Email parsing completed', {
-            subject: parsedMail.subject,
+            subject: parsedMail.subject || "",
             bodyLength: parsedMail.text ? parsedMail.text.length : 0,
             uid
         });
 
         return {
-            subject: parsedMail.subject,
+            subject: parsedMail.subject || "",
             body: parsedMail.text
         };
     } catch (err) {
@@ -210,7 +210,7 @@ async function saveEmailContent(emailContent, emailDir) {
     const subjectFilePath = path.join(emailDir, 'email_subject.txt');
     const bodyFilePath = path.join(emailDir, 'email_body.txt');
 
-    await fs.writeFile(subjectFilePath, emailContent.subject, {encoding: 'utf8'});
+    await fs.writeFile(subjectFilePath, emailContent.subject || "", {encoding: 'utf8'});
     await fs.writeFile(bodyFilePath, emailContent.body, {encoding: 'utf8'});
 
     logger.info(`Email subject saved to ${subjectFilePath}`);
