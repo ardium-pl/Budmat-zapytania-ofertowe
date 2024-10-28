@@ -213,7 +213,7 @@ async function saveEmailContent(emailContent, emailDir) {
     // Check for undefined values
     if (typeof emailContent.subject === 'undefined' || typeof emailContent.body === 'undefined') {
         logger.error(`Email content is missing data: ${JSON.stringify(emailContent)}`);
-        throw new Error("Email content is missing required fields");
+        return;
     }
 
     await fs.writeFile(subjectFilePath, emailContent.subject, {encoding: 'utf8'});
