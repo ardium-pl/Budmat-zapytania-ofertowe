@@ -308,8 +308,15 @@ async function createSheetAndInsertData(emailDir) {
                             endColumnIndex: LAST_COLUMN
                         }],
                         booleanRule: {
-                            condition: {type: "CUSTOM_FORMULA", values: [{userEnteredValue: "=MOD(ROW(),2)=0"}]},
-                            format: {backgroundColor: {red: 0.9, green: 0.95, blue: 1}} // Very light blue
+                            condition: {
+                                type: "CUSTOM_FORMULA",
+                                values: [{
+                                    userEnteredValue: "=ISEVEN(ROW())"
+                                }]
+                            },
+                            format: {
+                                backgroundColor: {red: 0.9, green: 0.95, blue: 1} // Very light blue
+                            }
                         }
                     },
                     index: 0
