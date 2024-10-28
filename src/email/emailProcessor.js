@@ -280,7 +280,7 @@ if (!isMainThread) {
             await _waitForProcessingComplete(emailDir);
             await _waitForAllPresent(emailDir);
             await _waitForPreprocessingComplete(emailDir);
-
+          
             const result = await _processEmailData(emailDir, emailId);
 
             if (result && !result.spam) {
