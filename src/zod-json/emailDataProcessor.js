@@ -117,12 +117,12 @@ async function processOfferData(emailDir) {
                         'Content-Type': 'application/json'
                     }
                 });
+                logger.info(`POST request successful`);
             }
             catch(error){
-                logger.error("Request was not sent successfuly: ", error);
+                logger.warn("Request was not sent successfuly: " +  error);
             }
             
-             logger.info(`POST request successful`);
 
             // Save processed data
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
