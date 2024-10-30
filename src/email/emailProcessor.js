@@ -190,13 +190,13 @@ async function getEmailContent(message) {
         const parsedMail = await simpleParser(rawEmail);
 
         logger.debug('Email parsing completed', {
-            subject: parsedMail.subject || 'No Subject',
+            subject: parsedMail.subject || "",
             bodyLength: parsedMail.text ? parsedMail.text.length : 0,
             uid
         });
 
         return {
-            subject: parsedMail.subject || 'No Subject',
+            subject: parsedMail.subject || "",
             body: parsedMail.text
         };
     } catch (err) {
@@ -216,7 +216,7 @@ async function saveEmailContent(emailContent, emailDir) {
         return;
     }
 
-    await fs.writeFile(subjectFilePath, emailContent.subject, {encoding: 'utf8'});
+    await fs.writeFile(subjectFilePath, emailContent.subject || "", {encoding: 'utf8'});
     await fs.writeFile(bodyFilePath, emailContent.body, {encoding: 'utf8'});
 
     logger.info(`Email subject saved to ${subjectFilePath}`);
@@ -286,10 +286,8 @@ if (!isMainThread) {
             await _waitForProcessingComplete(emailDir);
             await _waitForAllPresent(emailDir);
             await _waitForPreprocessingComplete(emailDir);
-
+   
             const result = await _processEmailData(emailDir, emailId);
-
-            // await _handleProcessedEmail(emailDir, emailId);
 
             if (result && !result.spam) {
                 await _handleProcessedEmail(emailDir, emailId);
