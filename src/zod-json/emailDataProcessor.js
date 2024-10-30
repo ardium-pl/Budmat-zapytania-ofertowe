@@ -7,11 +7,11 @@ const {createLogger} = require('../utils/logger');
 const logger = createLogger(__filename);
 const axios = require('axios');
 
-
 async function processOfferData(emailDir) {
     const emailId = path.basename(emailDir).replace('email_', '');
     const allJsonPath = path.join(emailDir, `all_${emailId}.json`);
     const apiEndpoint = process.env.API_ENDPOINT;
+
 
     try {
         logger.debug(`Processing offer data for email ${emailId}`);
@@ -148,7 +148,7 @@ async function processOfferData(emailDir) {
 }
 
 function isSpam(subject, body) {
-    const spamKeywords = ['alert', 'security', 'spam', 'phishing', 'Privacy Checkup', 'privacycheckup', 'privacy'];
+    const spamKeywords = ['alert', 'security', 'spam', 'phishing', 'Privacy Checkup', 'privacycheckup'];
     const combinedText = (subject + ' ' + body).toLowerCase();
     return spamKeywords.some(keyword => combinedText.includes(keyword));
 }

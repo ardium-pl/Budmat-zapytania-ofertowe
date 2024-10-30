@@ -210,6 +210,12 @@ async function saveEmailContent(emailContent, emailDir) {
     const subjectFilePath = path.join(emailDir, 'email_subject.txt');
     const bodyFilePath = path.join(emailDir, 'email_body.txt');
 
+    // Check for undefined values
+    if (typeof emailContent.subject === 'undefined' || typeof emailContent.body === 'undefined') {
+        logger.error(`Email content is missing data: ${JSON.stringify(emailContent)}`);
+        return;
+    }
+
     await fs.writeFile(subjectFilePath, emailContent.subject || "", {encoding: 'utf8'});
     await fs.writeFile(bodyFilePath, emailContent.body, {encoding: 'utf8'});
 
@@ -280,7 +286,7 @@ if (!isMainThread) {
             await _waitForProcessingComplete(emailDir);
             await _waitForAllPresent(emailDir);
             await _waitForPreprocessingComplete(emailDir);
-          
+   
             const result = await _processEmailData(emailDir, emailId);
 
             if (result && !result.spam) {
