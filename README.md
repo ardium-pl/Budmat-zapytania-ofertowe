@@ -57,7 +57,7 @@ gmail-extractor/
 │   │   └── logger.js
 │   │
 │   └── zod-json/
-│       ├── emailDataProcessor.js
+│       ├── emailDataProcessor_old.js
 │       └── emailDataSchema.js
 │
 ├── .env
