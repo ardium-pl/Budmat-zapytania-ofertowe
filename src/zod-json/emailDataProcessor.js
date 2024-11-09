@@ -40,7 +40,7 @@ async function processOfferData(emailDir) {
         1. Używaj tylko informacji explicite podanych w danych wejściowych.
         2. Dla brakujących danych:
            - Używaj null dla brakujących liczb (np. quantity: null gdy nie podano ilości).
-           - Używaj undefined dla brakujących stringów.
+           - NIE UŻYWAJ undefined - zawsze używaj null
         3. Nie przenoś danych między polami - każde pole wypełniaj tylko danymi dla niego przeznaczonymi.
         4. Dla zakresów liczbowych (np. długość, grubość):
            - Użyj tablicy dwuelementowej [min, max] jeśli podano zakres np. min. 280 - max 300.
@@ -85,57 +85,87 @@ async function processOfferData(emailDir) {
         
         Utwórz strukturyzowane podsumowanie oferty zgodnie z podanym schematem, uwzględniając wszystkie dostępne informacje.`;
 
-        // Używamy run() zamiast stream()
-        const output = await replicate.run(
-            "meta/meta-llama-3.1-405b-instruct",
-            {
-                input: {
-                    top_k: 50,
-                    top_p: 0.9,
-                    prompt: userPrompt,
-                    max_tokens: 16384,
-                    temperature: 0.7,
-                    system_prompt: systemPrompt,
-                    presence_penalty: 0,
-                    frequency_penalty: 0
-                }
-            }
-        );
-
-        // Próbujemy znaleźć JSON w odpowiedzi
-        const combinedOutput = typeof output === 'string' ? output : output.join('');
-        const jsonMatch = combinedOutput.match(/\{[\s\S]*\}/);
-
-        if (!jsonMatch) {
-            logger.error('No valid JSON found in response');
-            throw new Error('Invalid response format');
-        }
-
-        const parsedResponse = JSON.parse(jsonMatch[0]);
-        const cleanedData = cleanAndValidateData(parsedResponse);
-
         try {
-            await axios.post(apiEndpoint, cleanedData, {
-                headers: {
-                    'Content-Type': 'application/json'
+            const output = await replicate.run(
+                "meta/meta-llama-3.1-405b-instruct",
+                {
+                    input: {
+                        top_k: 50,
+                        top_p: 0.9,
+                        prompt: userPrompt,
+                        max_tokens: 16384,
+                        temperature: 0.7,
+                        system_prompt: systemPrompt,
+                        presence_penalty: 0,
+                        frequency_penalty: 0
+                    }
                 }
-            });
-            logger.info(`POST request successful`);
-        } catch(error) {
-            logger.warn("Request was not sent successfully: " + error);
+            );
+
+            logger.debug('Raw output from Replicate:', output);
+
+            // Próbujemy znaleźć JSON w odpowiedzi
+            let combinedOutput = '';
+            if (Array.isArray(output)) {
+                combinedOutput = output.join('');
+            } else if (typeof output === 'string') {
+                combinedOutput = output;
+            } else {
+                logger.error('Unexpected output type:', typeof output);
+                throw new Error(`Unexpected output type: ${typeof output}`);
+            }
+
+            logger.debug('Combined output:', combinedOutput);
+
+            // Szukamy JSON w tekście
+            const jsonMatch = combinedOutput.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                // Spróbujmy znaleźć coś co wygląda na JSON
+                const possibleJson = combinedOutput.substring(
+                    combinedOutput.indexOf('{'),
+                    combinedOutput.lastIndexOf('}') + 1
+                );
+
+                if (possibleJson && possibleJson.includes('{') && possibleJson.includes('}')) {
+                    try {
+                        const parsed = JSON.parse(possibleJson);
+                        logger.info('Successfully parsed JSON from partial match');
+                        const cleanedData = cleanAndValidateData(parsed);
+
+                        // Save and return data
+                        const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
+                        await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
+                        return cleanedData;
+                    } catch (jsonError) {
+                        logger.error('Failed to parse possible JSON:', jsonError);
+                    }
+                }
+
+                logger.error('No valid JSON found in response');
+                logger.debug('Response content:', combinedOutput);
+                throw new Error('Invalid response format');
+            }
+
+            const parsedResponse = JSON.parse(jsonMatch[0]);
+            logger.debug('Parsed JSON:', parsedResponse);
+
+            const cleanedData = cleanAndValidateData(parsedResponse);
+
+            // Save processed data
+            const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
+            await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
+
+            logger.debug(`Processed offer data saved to ${processedDataPath}`);
+            return cleanedData;
+
+        } catch (error) {
+            logger.error(`Error in processOfferData: ${error.message}`);
+            logger.error(`Stack trace: ${error.stack}`);
+            throw error;
         }
-
-        // Save processed data
-        const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
-        await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
-
-        logger.debug(`Processed offer data saved to ${processedDataPath}`);
-        return cleanedData;
-
     } catch (error) {
-        logger.error(`Error in processOfferData: ${error.message}`);
-        logger.error(`Stack trace: ${error.stack}`);
-        throw error; // Rzucamy błąd żeby worker mógł go obsłużyć
+        logger.error(`Error processing offer data for email ${emailId}: ${error.message}`);
+        throw error;
     }
 }
 
