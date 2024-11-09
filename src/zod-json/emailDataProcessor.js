@@ -86,6 +86,7 @@ async function processOfferData(emailDir) {
         Utwórz strukturyzowane podsumowanie oferty zgodnie z podanym schematem, uwzględniając wszystkie dostępne informacje.`;
 
         try {
+            logger.info(`Calling Replicate API for email ${emailId}`);
             const output = await replicate.run(
                 "meta/meta-llama-3.1-405b-instruct",
                 {
@@ -94,7 +95,7 @@ async function processOfferData(emailDir) {
                         top_p: 0.9,
                         prompt: userPrompt,
                         max_tokens: 16384,
-                        temperature: 0.7,
+                        temperature: 0.3,
                         system_prompt: systemPrompt,
                         presence_penalty: 0,
                         frequency_penalty: 0
@@ -102,54 +103,104 @@ async function processOfferData(emailDir) {
                 }
             );
 
-            logger.debug('Raw output from Replicate:', output);
+            logger.info('Received response from Replicate');
+            logger.debug(`Output type: ${typeof output}`);
+            logger.debug(`Is array: ${Array.isArray(output)}`);
+            logger.debug(`Raw output from Replicate: ${JSON.stringify(output)}`);
 
             // Próbujemy znaleźć JSON w odpowiedzi
             let combinedOutput = '';
             if (Array.isArray(output)) {
+                logger.debug(`Output is array with length: ${output.length}`);
+                if (output.length > 0) {
+                    logger.debug(`First elements: ${JSON.stringify(output.slice(0, 3))}`);
+                }
                 combinedOutput = output.join('');
             } else if (typeof output === 'string') {
+                logger.debug(`Output is string with length: ${output.length}`);
                 combinedOutput = output;
             } else {
-                logger.error('Unexpected output type:', typeof output);
-                throw new Error(`Unexpected output type: ${typeof output}`);
+                logger.error(`Unexpected output type: ${typeof output}`);
+                logger.error(`Output value: ${JSON.stringify(output)}`);
+                return null;
             }
 
-            logger.debug('Combined output:', combinedOutput);
+            logger.debug(`Combined output length: ${combinedOutput.length}`);
+            if (combinedOutput.length > 0) {
+                logger.debug(`Combined output preview: ${combinedOutput.substring(0, 500)}`);
+            }
 
-            // Szukamy JSON w tekście
-            const jsonMatch = combinedOutput.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) {
-                // Spróbujmy znaleźć coś co wygląda na JSON
-                const possibleJson = combinedOutput.substring(
-                    combinedOutput.indexOf('{'),
-                    combinedOutput.lastIndexOf('}') + 1
-                );
+            // Bezpieczniejsze szukanie JSON w tekście
+            let jsonData = null;
+            const openBraceIndex = combinedOutput.indexOf('{');
+            const closeBraceIndex = combinedOutput.lastIndexOf('}');
 
-                if (possibleJson && possibleJson.includes('{') && possibleJson.includes('}')) {
-                    try {
-                        const parsed = JSON.parse(possibleJson);
-                        logger.info('Successfully parsed JSON from partial match');
-                        const cleanedData = cleanAndValidateData(parsed);
+            logger.debug(`Open brace index: ${openBraceIndex}`);
+            logger.debug(`Close brace index: ${closeBraceIndex}`);
 
-                        // Save and return data
-                        const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
-                        await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
-                        return cleanedData;
-                    } catch (jsonError) {
-                        logger.error('Failed to parse possible JSON:', jsonError);
+            if (openBraceIndex !== -1 && closeBraceIndex !== -1) {
+                const possibleJson = combinedOutput.substring(openBraceIndex, closeBraceIndex + 1);
+                logger.debug(`Possible JSON preview: ${possibleJson.substring(0, 500)}`);
+
+                try {
+                    const cleanedJson = possibleJson
+                        .replace(/\n/g, ' ')
+                        .replace(/\r/g, ' ')
+                        .replace(/\t/g, ' ')
+                        .replace(/\\"/g, '"')
+                        .replace(/("(?:[^"\\]|\\.)*")|\/\/[^\n]*|\/\*(?:[^*]|\*(?!\/))*\*\//g, (match, str) => str || '')
+                        .replace(/,\s*([\]}])/g, '$1');
+
+                    logger.debug(`Cleaned JSON preview: ${cleanedJson.substring(0, 500)}`);
+
+                    jsonData = JSON.parse(cleanedJson);
+                    logger.info('Successfully parsed JSON from response');
+                    logger.debug(`Parsed data preview: ${JSON.stringify(jsonData).substring(0, 500)}`);
+                } catch (jsonError) {
+                    logger.error(`Failed to parse possible JSON: ${jsonError.message}`);
+                    logger.error(`JSON parse error location: ${jsonError.message}`);
+
+                    // Spróbujmy znaleźć inny fragment JSON
+                    const allJsonMatches = combinedOutput.match(/\{[\s\S]*?\}/g);
+                    if (allJsonMatches) {
+                        logger.debug(`Found ${allJsonMatches.length} alternative JSON matches`);
+                        for (let i = 0; i < allJsonMatches.length; i++) {
+                            const match = allJsonMatches[i];
+                            logger.debug(`Trying alternative match ${i + 1}/${allJsonMatches.length}`);
+                            logger.debug(`Match preview: ${match.substring(0, 200)}`);
+
+                            try {
+                                const cleanedMatch = match
+                                    .replace(/\n/g, ' ')
+                                    .replace(/\r/g, ' ')
+                                    .replace(/\t/g, ' ')
+                                    .replace(/\\"/g, '"')
+                                    .replace(/("(?:[^"\\]|\\.)*")|\/\/[^\n]*|\/\*(?:[^*]|\*(?!\/))*\*\//g, (match, str) => str || '')
+                                    .replace(/,\s*([\]}])/g, '$1');
+
+                                jsonData = JSON.parse(cleanedMatch);
+                                logger.info(`Successfully parsed JSON from alternative match ${i + 1}`);
+                                logger.debug(`Parsed alternative data: ${JSON.stringify(jsonData).substring(0, 200)}`);
+                                break;
+                            } catch (e) {
+                                logger.error(`Failed to parse alternative JSON ${i + 1}: ${e.message}`);
+                                continue;
+                            }
+                        }
+                    } else {
+                        logger.error('No alternative JSON matches found');
                     }
                 }
-
-                logger.error('No valid JSON found in response');
-                logger.debug('Response content:', combinedOutput);
-                throw new Error('Invalid response format');
+            } else {
+                logger.error('No JSON structure markers found in output');
+                if (combinedOutput) {
+                    logger.debug(`Output content preview: ${combinedOutput.substring(0, 200)}`);
+                } else {
+                    logger.error('Combined output is empty or null');
+                }
             }
 
-            const parsedResponse = JSON.parse(jsonMatch[0]);
-            logger.debug('Parsed JSON:', parsedResponse);
-
-            const cleanedData = cleanAndValidateData(parsedResponse);
+            const cleanedData = cleanAndValidateData(jsonData);
 
             // Save processed data
             const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
@@ -161,11 +212,11 @@ async function processOfferData(emailDir) {
         } catch (error) {
             logger.error(`Error in processOfferData: ${error.message}`);
             logger.error(`Stack trace: ${error.stack}`);
-            throw error;
+            return null;
         }
     } catch (error) {
         logger.error(`Error processing offer data for email ${emailId}: ${error.message}`);
-        throw error;
+        return null;
     }
 }
 
