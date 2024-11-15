@@ -62,11 +62,22 @@ async function processOfferData(emailDir) {
         8. Dla szczegółów oferty (offerDetails):
            - currency: waluta oferty
            - deliveryTerms: warunki dostawy (np. CIP Gdańsk, DDP Płock)
-           - deliveryDate: termin dostawy (np. Sept/Oct, )
+           - deliveryDate: termin dostawy (np. Sept/Oct)
            - paymentTerms: termin płatności (np. "net cash. 60 days date of invoice")
         9. Nie dodawaj żadnych informacji, których nie ma w danych wejściowych - lepiej zostawić pole puste niż zgadywać.
         
-        WAŻNE: Odpowiedz tylko w formacie JSON zgodnym z podanym schematem. Nie dodawaj żadnego tekstu przed ani po JSON.
+        BARDZO WAŻNE: 
+        1. Odpowiedz TYLKO w poprawnym formacie JSON.
+        2. Nie dodawaj żadnego tekstu przed ani po JSON.
+        3. JSON musi zawierać wszystkie wymagane pola, nawet jeśli są null.
+        4. Przykład poprawnej odpowiedzi:
+        {
+         "offerNumber": "123",
+         "offerDate": "2024-01-15",
+         "supplier": {
+           "name": "Example Corp"  
+         }
+        }\`;
         
         Schemat JSON dla odpowiedzi:
         ${JSON.stringify(zodToJsonSchema(OutputSchema, {
@@ -95,7 +106,7 @@ async function processOfferData(emailDir) {
                         top_p: 0.9,
                         prompt: userPrompt,
                         max_tokens: 16384,
-                        temperature: 0.3,
+                        temperature: 0.1, // Zmniejszona temperatura dla bardziej deterministycznych wyników
                         system_prompt: systemPrompt,
                         presence_penalty: 0,
                         frequency_penalty: 0
@@ -103,12 +114,19 @@ async function processOfferData(emailDir) {
                 }
             );
 
+            // Szczegółowe logowanie odpowiedzi API
             logger.info('Received response from Replicate');
             logger.debug(`Output type: ${typeof output}`);
             logger.debug(`Is array: ${Array.isArray(output)}`);
             logger.debug(`Raw output from Replicate: ${JSON.stringify(output)}`);
 
-            // Próbujemy znaleźć JSON w odpowiedzi
+            // Sprawdzenie pustej odpowiedzi
+            if (!output || (Array.isArray(output) && output.length === 0)) {
+                logger.error('Empty response from Replicate API');
+                return null;
+            }
+
+            // Łączenie odpowiedzi w jeden string
             let combinedOutput = '';
             if (Array.isArray(output)) {
                 logger.debug(`Output is array with length: ${output.length}`);
@@ -122,6 +140,12 @@ async function processOfferData(emailDir) {
             } else {
                 logger.error(`Unexpected output type: ${typeof output}`);
                 logger.error(`Output value: ${JSON.stringify(output)}`);
+                return null;
+            }
+
+            // Walidacja połączonej odpowiedzi
+            if (typeof combinedOutput !== 'string' || combinedOutput.trim().length === 0) {
+                logger.error('Invalid or empty combined response');
                 return null;
             }
 
@@ -160,7 +184,7 @@ async function processOfferData(emailDir) {
                     logger.error(`Failed to parse possible JSON: ${jsonError.message}`);
                     logger.error(`JSON parse error location: ${jsonError.message}`);
 
-                    // Spróbujmy znaleźć inny fragment JSON
+                    // Próba znalezienia alternatywnych fragmentów JSON
                     const allJsonMatches = combinedOutput.match(/\{[\s\S]*?\}/g);
                     if (allJsonMatches) {
                         logger.debug(`Found ${allJsonMatches.length} alternative JSON matches`);
@@ -203,11 +227,15 @@ async function processOfferData(emailDir) {
             const cleanedData = cleanAndValidateData(jsonData);
 
             // Save processed data
-            const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
-            await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
-
-            logger.debug(`Processed offer data saved to ${processedDataPath}`);
-            return cleanedData;
+            if (cleanedData) {
+                const processedDataPath = path.join(emailDir, `processed_offer_${emailId}.json`);
+                await fs.writeFile(processedDataPath, JSON.stringify(cleanedData, null, 2));
+                logger.debug(`Processed offer data saved to ${processedDataPath}`);
+                return cleanedData;
+            } else {
+                logger.error('No valid data to save after cleaning and validation');
+                return null;
+            }
 
         } catch (error) {
             logger.error(`Error in processOfferData: ${error.message}`);
@@ -227,37 +255,19 @@ function isSpam(subject, body) {
     return spamKeywords.some(keyword => combinedText.includes(keyword));
 }
 
-
-// Retry processing offer data in case of rate limit errors -> 429 open Ai error
-async function processOfferDataWithRetry(emailDir, maxRetries = 5, initialDelay = 1000) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const result = await processOfferData(emailDir);
-            logger.info(`Successfully processed offer data on attempt ${attempt}`);
-            return result;
-        } catch (error) {
-            if (attempt < maxRetries) {
-                const delay = initialDelay * Math.pow(2, attempt - 1);
-                logger.warn(`Error occurred. Retrying in ${delay}ms. Attempt ${attempt} of ${maxRetries}`);
-                await new Promise((resolve) => setTimeout(resolve, delay));
-            } else {
-                logger.error(`Error processing offer data on attempt ${attempt}: ${error.message}`);
-                break;
-            }
-        }
-    }
-    logger.error(`Failed to process offer data after ${maxRetries} attempts.`);
-    return null;
-}
-
 function cleanAndValidateData(data) {
+    if (!data) {
+        logger.error('Received null or undefined data for cleaning');
+        return null;
+    }
+
     const cleanValue = (value) => {
         if (Array.isArray(value)) {
             return value.map(cleanValue);
         }
         if (typeof value === 'string') {
             const trimmed = value.trim();
-            return trimmed === '' ? undefined : trimmed;
+            return trimmed === '' ? null : trimmed;
         }
         if (typeof value === 'number') {
             return isNaN(value) ? null : value;
@@ -272,16 +282,25 @@ function cleanAndValidateData(data) {
         if (obj && typeof obj === 'object') {
             const cleaned = {};
             for (const [key, value] of Object.entries(obj)) {
-                cleaned[key] = cleanObject(value);
+                const cleanedValue = cleanObject(value);
+                if (cleanedValue !== undefined && cleanedValue !== null) {
+                    cleaned[key] = cleanedValue;
+                }
             }
-            return cleaned;
+            return Object.keys(cleaned).length > 0 ? cleaned : null;
         }
         return cleanValue(obj);
     };
 
-    return cleanObject(data);
+    try {
+        const cleanedData = cleanObject(data);
+        logger.debug(`Cleaned data preview: ${JSON.stringify(cleanedData).substring(0, 200)}`);
+        return cleanedData;
+    } catch (error) {
+        logger.error(`Error during data cleaning: ${error.message}`);
+        return null;
+    }
 }
-
 
 module.exports = {
     processOfferData
