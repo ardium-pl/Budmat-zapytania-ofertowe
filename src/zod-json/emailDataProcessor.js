@@ -28,8 +28,15 @@ async function processOfferData(emailDir) {
             return {spam: true};
         }
 
-
-        const client = new OpenAI();
+        // Initialize Azure OpenAI client
+        const client = new OpenAI({
+            apiKey: process.env.AZURE_OPENAI_API_KEY,
+            baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${process.env.AZURE_DEPLOYMENT_NAME}`,
+            defaultHeaders: {
+                'api-key': process.env.AZURE_OPENAI_API_KEY,
+            },
+            defaultQuery: { 'api-version': '2024-08-01-preview' },
+        });
 
         // Convert Zod schema to JSON Schema
         const jsonSchema = zodToJsonSchema(OutputSchema, {
@@ -46,11 +53,9 @@ async function processOfferData(emailDir) {
             }
         };
 
-        // // Optional: Log the response_format for debugging
-        // logger.debug(JSON.stringify(responseFormat, null, 2));
-
-        const completion = await client.beta.chat.completions.parse({
-            model: "gpt-4o-2024-08-06",
+        // Note: For Azure OpenAI, we use completions.create instead of completions.parse
+        const completion = await client.chat.completions.create({
+            model: process.env.AZURE_DEPLOYMENT_NAME, // Use deployment name instead of model name
             messages: [
                 {
                     role: "system",
@@ -108,10 +113,13 @@ async function processOfferData(emailDir) {
         logger.warn(`Used ${tokenUsage.total_tokens} tokens. (Prompts: ${tokenUsage.prompt_tokens}, Response: ${tokenUsage.completion_tokens})`);
 
         const message = completion.choices[0]?.message;
-        if (message?.parsed) {
+        if (message?.content) {
+            // Parse the content since Azure OpenAI returns string
+            const parsedContent = JSON.parse(message.content);
             // Additional data cleaning and validation
-            const cleanedData = cleanAndValidateData(message.parsed);
-            try{
+            const cleanedData = cleanAndValidateData(parsedContent);
+
+            try {
                 await axios.post(apiEndpoint, cleanedData, {
                     headers: {
                         'Content-Type': 'application/json'
@@ -119,8 +127,8 @@ async function processOfferData(emailDir) {
                 });
                 logger.info(`POST request successful`);
             }
-            catch(error){
-                logger.warn("Request was not sent successfuly: " +  error);
+            catch(error) {
+                logger.warn("Request was not sent successfully: " + error);
             }
             
 
@@ -131,8 +139,8 @@ async function processOfferData(emailDir) {
             logger.debug(`Processed offer data saved to ${processedDataPath}`);
             return cleanedData;
         } else {
-            logger.error('Unexpected response from OpenAI API:', message.refusal);
-            return null; // Return null instead of throwing an error
+            logger.error('Unexpected response from Azure OpenAI API');
+            return null;
         }
     } catch (error) {
         if (error.message.includes('429 Rate limit reached')) {
